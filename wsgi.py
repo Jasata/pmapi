@@ -33,7 +33,7 @@ from pmapi import app as application
 #
 import logging
 logging.basicConfig(
-    filename=application.config.get('LOG_FILENAME', 'flask.log'),
+    filename=application.config.get('LOG_FILENAME', 'uwsgi.log'),
     level=logging.DEBUG
 )
 logging.info(
