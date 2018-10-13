@@ -9,6 +9,7 @@
 #
 #   0.1.0   2018.10.11  Initial version.
 #   0.1.1   2018.10.12  Added into.details, bug fixes.
+#   0.1.2   2018.10.13  Changed to named SQL parameters (simpler to read).
 #
 #
 import json
@@ -35,33 +36,21 @@ class PulseHeight:
         t_cpu_start  = time.process_time()
         cursor = g.db.cursor()
         # Extract request parameters
-        begin = request.args.get('begin',       None, type=int)
-        end   = request.args.get('end',         None, type=int)
-        t     = request.args.get('timestamp',   None, type=int)
+        timestamp   = request.args.get('timestamp',   None, type=int)
+        begin       = request.args.get('begin',       None, type=int)
+        end         = request.args.get('end',         None, type=int)
         # Parse SQL
-        sql = """
-            SELECT  *
-            FROM    sample_pulse_height_data
-        """
-        bvars = tuple()
-        if t:
-            sql += """
-                WHERE   timestamp = ?
-            """
-            bvars = (t,)
-        elif begin or end:
-            sql += "WHERE "
-            if begin:
-                sql += " timestamp >= ? "
-                if end:
-                    sql += " AND timestamp <= ?"
-                    bvars = (begin, end)
-                else:
-                    bvars = (begin,)
-            elif end:
-                sql += " timestamp <= ?"
-                bvars = (end,)
+        sql = "SELECT * FROM sample_pulse_height_data "
+        if timestamp:
+            sql += "WHERE timestamp = :timestamp"
+        elif begin and not end:
+            sql += "WHERE timestamp >= :begin"
+        elif end and not begin:
+            sql += "WHERE timestamp <= :end"
+        elif begin and end:
+            sql += "WHERE timestamp >= :begin AND timestamp <= :end"
         # Execute query
+        bvars = {'timestamp' : timestamp, 'begin' : begin, 'end' : end}
         try:
             result = cursor.execute(sql, bvars)
         except sqlite3.Error as e:
@@ -78,12 +67,12 @@ class PulseHeight:
             # (result-)table column names are used as keys in key-value pairs.
             status = "OK"
             data = [dict(zip([key[0] for key in cursor.description], row)) for row in result]
-            details = sql
+            details = sql + str(bvars)
         finally:
             info = {
                 "t_cpu"     : time.process_time() - t_cpu_start,
                 "t_real"    : time.perf_counter() - t_real_start,
-                "rowcount"  : cursor.rowcount,
+                "rowcount"  : len(data),      # cursor.rowcount,
                 "status"    : status,
                 "details"   : details
             }
