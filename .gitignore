@@ -59,7 +59,7 @@ db.sqlite3
 # Flask stuff:
 instance/
 .webassets-cache
-flask.log
+uwsgi.log
 
 # Scrapy stuff:
 .scrapy
