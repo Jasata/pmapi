@@ -59,7 +59,7 @@ Create this directory and 'pmapi.conf' file into it (0440 www-data.www-data):
     #
     # Flask app logging
     #
-    LOG_FILENAME             = 'flask.log'
+    LOG_FILENAME             = 'uwsgi.log'
     
     
     #
