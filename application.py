@@ -8,11 +8,12 @@
 # wsgi.py - Jani Tammi <jasata@utu.fi>
 #
 #   0.1.0   2018.10.11  Initial version.
+#   0.1.1   2018.10.14  Fixed the version output in the logging message.
 #
 #
-#   uWSGI configuration (uwsgi.ini) specifies flask app directory
-#   to be ("chdir = /srv/nginx-root/") and that the 'application'
-#   is to be found in this module ("module = wsgi").
+#   uWSGI configuration (uwsgi.ini) specifies flask app directory to be
+#   ("chdir = /srv/nginx-root/") and that the 'application' is to be found
+#   in this module ("module = application"  =>  'application.py').
 #
 #   If the execution directory ("chdir" in uwsgi.ini) changes,
 #   this file has to be updated accordingly.
