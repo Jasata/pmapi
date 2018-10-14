@@ -42,6 +42,7 @@ logging.info(
     "PATE Monitor REST API (PMAPI) Flask application started\n"
     "Turku University (2018) Department of Future Technologies\n"
     "Version {}, Jani Tammi <jasata@utu.fi>\n"
+    .format(application.config.get('VERSION', '(undefined)'))
 )
 
 # THIS WOULD NEVER EXECUTED in normal uWSGI usage (just a FYI)
