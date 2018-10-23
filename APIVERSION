@@ -1,0 +1,9 @@
+# Foresail-1 / PATE Monitor REST API Version number
+#
+# This file may contain ONLY one single non-comment line.
+# That row can have only one integer number, which represents
+# the ímplementation version of this REST JSON API.
+# 
+
+2
+

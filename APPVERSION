@@ -1,0 +1,9 @@
+# Foresail-1 PATE Monitor Middleware version number
+#
+# This file may contain ONLY one single non-comment line.
+# That row is expected to contain a semantic version string "x.y.z".
+# (https://semver.org/)
+# The version identified the middleware version (including API).
+# 
+    
+0.2.0
