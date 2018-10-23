@@ -6,6 +6,8 @@
 #
 #   0.1.0   2018.10.20  Initial version.
 #
+#   NOTE: Obsoleted by 'generate_hitcount.py'
+#
 import os
 import time
 import random
