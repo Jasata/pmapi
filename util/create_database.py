@@ -22,6 +22,9 @@ def drop(table):
 #
 # Drop in reverse order (foreign keys)
 #
+drop("note")
+drop("command")
+drop("register")
 drop("pulseheight")
 drop("hitcount")
 drop("testing_session")
@@ -145,6 +148,101 @@ try:
     )
     """
     cursor.execute(sql)
+
+    #
+    # register
+    #
+    #       PATE Registers. Assumably, this table will get populated when
+    #       a testing session begins, allowing UI to display these values
+    #       without issuing (high-delay) commands to PATE for reading the
+    #       values.
+    #
+    #       NOTE: Just a placeholder for now...
+    #
+    sql = """
+    CREATE TABLE register
+    (
+        pate_id         INTEGER NOT NULL,
+        retrieved       DATETIME NOT NULL,
+        reg01           INTEGER NOT NULL,
+        reg02           INTEGER NOT NULL,
+        FOREIGN KEY (pate_id) REFERENCES pate (id)
+    )
+    """
+    cursor.execute(sql)
+
+
+    #
+    # note
+    #
+    #       Store operator issued notes during a testing session.
+    #       (remove for mission-time EGSE)
+    #
+    sql = """
+    CREATE TABLE note
+    (
+        session_id      INTEGER NOT NULL,
+        timestamp       DATETIME NOT NULL,
+        note            TEXT,
+        FOREIGN KEY (session_id) REFERENCES testing_session (id)
+    )
+    """
+    cursor.execute(sql)
+
+
+
+    #
+    # command
+    #
+    sql = """
+    CREATE TABLE command
+    (
+        id              INTEGER         NOT NULL PRIMARY KEY AUTOINCREMENT,
+        session_id      INTEGER         NOT NULL,
+        interface       TEXT            NOT NULL,
+        command         TEXT            NOT NULL,
+        value           TEXT            NOT NULL,
+        created         TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        handled         DATETIME        NULL,
+        result          TEXT            NULL,
+        FOREIGN KEY (session_id) REFERENCES testing_session (id)
+    )
+    """
+    cursor.execute(sql)
+
+
+    #
+    # PSU (this table is supposed to have only zero or one rows)
+    #
+    sql = """
+    CREATE TABLE psu
+    (
+        id                  INTEGER         NOT NULL DEFAULT 0 PRIMARY KEY,
+        power               TEXT            NOT NULL,
+        voltage_setting     NUMBER          NOT NULL,
+        current_limit       NUMBER          NOT NULL,
+        measured_current    NUMBER          NOT NULL,
+        measured_voltage    NUMBER          NOT NULL,
+        state               TEXT            NOT NULL,
+        modified            TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT          single_row_chk  CHECK (id = 0),
+        CONSTRAINT          power_chk       CHECK (power IN ('ON', 'OFF')),
+        CONSTRAINT          state_chk       CHECK (state IN ('OK', 'OVER CURRENT'))
+    )
+    """
+    cursor.execute(sql)
+    # SQLite doesn't have "CREATE OR REPLACE"
+    trg = """
+    CREATE TRIGGER psu_ari
+    AFTER UPDATE ON psu
+    FOR EACH ROW
+    BEGIN
+        UPDATE psu
+        SET    modified = current_timestamp
+        WHERE  id = old.id;
+    END;
+    """
+    cursor.execute(trg)
 
 except:
     print("Database creation failed!")

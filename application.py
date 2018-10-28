@@ -56,6 +56,13 @@ app = Flask(
 )
 
 #
+# Register custom API error handler TESTING!!!!!!!!!
+# (api/__init__.py)
+#from api import custom_api_error_handler
+#from flask import got_request_exception
+#got_request_exception.connect(custom_api_error_handler, app)
+
+#
 # PATE Monitor JSON API implementation version number (integer)
 #
 try:
@@ -110,7 +117,6 @@ finally:
 app.config.from_pyfile('application.conf')
 
 
-
 #
 # Logging
 #
@@ -119,8 +125,6 @@ handler = RotatingFileHandler(
     maxBytes    = 1000000,
     backupCount = 1
 )
-#handler.setLevel(logging.DEBUG)
-handler.setLevel(app.config.get('LOG_LEVEL', logging.DEBUG))
 handler.setFormatter(
     Formatter(
         '%(asctime)s %(levelname)s: %(message)s '
@@ -128,13 +132,27 @@ handler.setFormatter(
     )
 )
 app.logger.addHandler(handler)
+# Setting is given as a string, which needs to be converted into
+# the integer value that logger module uses. Default to DEBUG.
+# Using getattr() with default instead of logging.getLevelName()
+# because the logger function has a nasty feature of returning
+# invalid values as string "Level " + <invalid value>.
+# We definitely need a valid fallback value for invalid arguments.
+app.logger.setLevel(
+    getattr(
+        logging,
+        str(app.config.get('LOG_LEVEL', 'DEBUG')),
+        logging.DEBUG
+    )
+)
 app.logger.info(
-    "Logging enabled for level {}"
-    .format(logging.getLevelName(logging.getLogger().getEffectiveLevel())))
+    "Logging enabled for level {} ({})"
+    .format(
+        logging.getLevelName(app.logger.getEffectiveLevel()),
+        app.logger.getEffectiveLevel()
+    )
+)
 
-#
-# 
-#
 
 
 #
@@ -149,6 +167,24 @@ app.logger.info(
     "REST API version {}\n"
     .format(app.appversion, app.apiversion)
 )
+
+
+#
+# Check certain important configuration values
+#
+if not app.config.get('COMMAND_TIMEOUT', None):
+    app.logger.warning(
+        "COMMAND_TIMEOUT not defined in application.conf! Defaulting to 1 second..."
+    )
+    app.config['COMMAND_TIMEOUT'] = 1.0
+
+if not app.config.get('COMMAND_POLL_INTERVAL', None):
+    app.logger.warning(
+        "COMMAND_POLL_INTERVAL not defined in application.conf! Defaulting to 0.2 seconds..."
+    )
+    app.config['COMMAND_POLL_INTERVAL'] = 1.0
+
+
 
 
 ###############################################################################

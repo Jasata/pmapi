@@ -17,8 +17,13 @@ import time
 import logging
 import sqlite3
 
-from flask              import g # in __init__.py
-#from ..                 import app # in __init__.py
+# Note on importing: THIS file has been imported by the application and thus
+# the CWD is still application root ('/'). This is the reason why resources
+# in subdirectories also include just as if they would run in root directory.
+# (Because, these modules *ARE* running in the application root).
+#
+from flask              import g
+from application        import app
 
 class PulseHeight:
 
@@ -31,10 +36,6 @@ class PulseHeight:
         3. begin and/or end Return records that fall between begin and end
         'timestamp', 'begin' and 'end' are UNIX datetime stamps.
         """
-        app.logger.debug("app is OK?")
-        # Start timing
-        t_real_start = time.perf_counter()
-        t_cpu_start  = time.process_time()
         cursor = g.db.cursor()
         # Extract request parameters
         timestamp   = request.args.get('timestamp',   None, type=int)
@@ -59,25 +60,19 @@ class PulseHeight:
                 "SQL='{}', bvars='{}'"
                 .format(sql, bvars)
             )
-            status = "ERROR"
             data = []
-            details = str(e)
         else:
             # https://medium.com/@PyGuyCharles/python-sql-to-json-and-beyond-3e3a36d32853
             # turn result object into a list of row-dictionaries
             # (result-)table column names are used as keys in key-value pairs.
-            status = "OK"
             data = [dict(zip([key[0] for key in cursor.description], row)) for row in result]
-            details = sql + str(bvars)
         finally:
-            info = {
-                "t_cpu"     : time.process_time() - t_cpu_start,
-                "t_real"    : time.perf_counter() - t_real_start,
-                "rowcount"  : len(data),      # cursor.rowcount, This is always -1 with SQLite
-                "status"    : status,
-                "details"   : details
-            }
             cursor.close()
-        return json.dumps({'info': info, 'data': data})
+
+        # if app.config['DEBUG'] == True:
+        return {'data': data, 'debug': {'sql': sql, 'bind variables' : bvars}}
+        # else:
+        #    return {'data': data}
+
 
 # EOF
