@@ -8,15 +8,21 @@
 # PSU.py - Jani Tammi <jasata@utu.fi>
 #
 #   0.1.0   2018.10.27  Initial version.
+#   0.2.0   2018.10.29  Complies to new api.response() specs.
 #
 #
 # Command interface
 #
-#       method  fnc             Description
-#       GET     N/A             Returns all values relevant to PSU.
-#       POST    power           Set PSU power state ON or OFF.
-#       POST    voltage         Set PSU output voltage to 'val'.
-#       POST    current_limit   Set PSU current limit to 'val'.
+#       method  'function'          'value' Description
+#       GET     -                   -       Returns all values relevant to PSU.
+#       POST    SET_POWER           ON|OFF  Set PSU power state ON or OFF.
+#       POST    SET_VOLTAGE         float   Set PSU output voltage to 'val'.
+#       POST    SET_CURRENT_LIMIT   float   Set PSU current limit to 'val'.
+#
+#       Example:
+#           POST /api/psu HTTP/1.1
+#           
+#           {"function" : "SET_VOLTAGE", "value" : 3.3}
 #
 # PSU data
 #
@@ -29,7 +35,7 @@
 #       current_limit       float       Effective current limit value.
 #       measured_voltage    float       Measured output voltage.
 #       measured_current    float       Measured output current.
-#       state           string      'OK' or 'OVER CURRENT'.
+#       state               string      'OK' or 'OVER CURRENT'.
 #
 # Functional notes
 #
@@ -85,7 +91,7 @@ class PSU:
         finally:
             cursor.close()
 
-        return {'data': data, 'debug': {'sql': sql}}
+        return (200, {'data': data, 'debug': {'sql': sql}})
 
 
     @staticmethod
@@ -110,7 +116,7 @@ class PSU:
         try:
             if not request.json:
                 raise api.InvalidArgument(
-                    "POST has no JSON payload!",
+                    "API Request has no JSON payload!",
                     "This service requires 'function' and 'value' arguments."
                 )
             # Extract parameters
@@ -232,7 +238,7 @@ class PSU:
                     }
                 )
             # We have a result!
-            return {'result' : result}
+            return (200, {'result' : result})
         except Exception as e:
             app.logger.exception(
                 "Error while processing PSU command!"

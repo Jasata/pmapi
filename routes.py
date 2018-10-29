@@ -10,24 +10,46 @@
 #   0.1.0   2018.10.11  Initial version.
 #   0.2.0   2018.10.20  Route for hit counter data.
 #   0.3.0   2018.10.26  Rewritten to match new design.
+#   0.3.1   2018.10.28  Added docstrings.
 #
 #
 #   IMPORTANT!
 #
-#       REST API implmentation strategy is requires that the route handler
+#       Actual processing is to be done API resource classes/objects and
+#       the REST API route handler returns ALWAYS with 'api.response()'.
+#       REST API implmentation strategy requires that the route handler
 #       encloses whatever code it needs to run, into a 'try ... except'.
-#       If non-recoverable error occures, the route handler is required to
-#       use the local function 'exception_json()' to produce an error
-#       message for the client.
 #
-#       PATE Monitor JSON API specification states that all API calls return
-#       either excepted JSON structure:
-#       {"info" : {"version" : <int>, ...}, "data" : [{}, ...]}
-#       or exception JSON structure:
-#       {"error" : {"type" : <str>, "trace" : <str>}}.
+#       API Response generator 'api.response()' handles three kinds of input:
+#           - Dictionaries (normal outcome)
+#           - ApiExceptions (recognized issues)
+#           - Exceptions (unexpected errors)
+#       Response generator WILL create a HTTP response object with JSON
+#       payload for any of the input types.
 #
-#       Client is required to check if the received JSON has key 'error' before
-#       assuming that the received data is correct.
+#
+#   PATTERN FOR ROUTES
+#
+#       @app.route('/api/endpoint', methods=['GET', 'POST'])
+#       def service():
+#           """This docstring will appear in automatic documentation!"""
+#           log_request(request)
+#           try:
+#               from api import ResourceObject
+#               if request.method == 'GET':
+#                   api.response(*ResourceObject.get(request))
+#               elif request.method == 'POST':
+#                   api.response(*ResourceObject.post(request))
+#               else:
+#                   raise api.MethodNotAllowed(
+#                       "Method '{}' not supported for '{}'"
+#                       .format(request.method, request.url_rule)
+#                   )
+#           except Exception as e:
+#               return api.response(e)
+#
+#       Modify docstring, endpoint and the ResourceObject (at least).
+#
 #
 #   REST actions (std scheme)
 #
@@ -44,7 +66,7 @@
 #       GET [{filter},...]  Retrieve matching resources
 #       GET                 Retrieve all resources
 #       HEAD                (same as GET)
-#       POST                Create resource
+#       POST                Create resource (or issue command)
 #       PUT                 Update resource {id} in body
 #       DELETE {id, ...}    Delete identified resource(s)
 #       OPTIONS             List supported request actions
@@ -116,7 +138,7 @@ def log_request(request):
 #       POST    "405 Method Not Allowed"'error':<str>       POST is unsupported
 #       POST    "406 Not Acceptable"    'error':<str>       Problems with provided values (data quality/type issues)
 #       POST    "409 Conflict"          'error':<str>       Unique/PK violation, Foreign key not found (structural issues)
-#       PUT
+#       PUT == PATCH in this implementation
 #       PATCH   "200 OK"                (entire object)     UPDATE was successful, SELECT new data
 #       PATCH   "404 Not Found"         'error':<str>       Entity ID not found (wrong PK)
 #       PATCH   "405 Method Not Allowed"'error':<str>       PATCH is unsupported
@@ -132,11 +154,15 @@ def log_request(request):
 #           or whatever is the chosen approach...
 #           https://flask-user.readthedocs.io/en/v0.6/authorization.html
 #
-#   URI's (planned)
 #
-#       For most (except session management) like;
-#       /api/<session>/hitcout?timestamp=152139123
+
+
+###############################################################################
 #
+# REST API ENDPOINTS (routes)
+#
+###############################################################################
+
 
 #
 # Sample Pulse Height Data (to be calibration data?)
@@ -154,23 +180,23 @@ def pulseheight():
                 "Method {} is not supported for '{}'"
                 .format(request.method, request.url_rule)
             )
-    except api.ApiException as e:
-        return api.response(e)
     except Exception as e:
-        return api.response(e)
+        # Handles both ApiException and Exception derivates
+        return api.exception_response(e)
 
 
 #
 # Science Data (hit counters)
 #
-@app.route('/api/hitcounters', methods=['GET'])
-def hitcounters():
+@app.route('/api/classifieddata', methods=['GET'])
+def classifieddata():
     log_request(request)
     try:
-        from api.HitCounters import HitCounters
-        return api.response(HitCounters.get(request))
+        from api.ClassifiedData import ClassifiedData
+        return api.response(ClassifiedData.get(request))
     except Exception as e:
-        return api.response(e)
+        # Handles both ApiException and Exception derivates
+        return api.exception_response(e)
 
 
 #
@@ -192,7 +218,8 @@ def note():
                 .format(request.method, request.url_rule)
             )
     except Exception as e:
-        return api.response(e)
+        # Handles both ApiException and Exception derivates
+        return api.exception_response(e)
 
 #
 # Command interface
@@ -211,9 +238,9 @@ def psu():
     'modified' (float), Unix timestamp (with fractions of seconds) on when this row was generated.
 
     POST method allows setting three PSU parameters:
-    'function': 'set voltage', 'value': (float)
-    'function': 'set current limit', 'value': (float)
-    'function': 'set power', 'value': 'ON' | 'OFF'
+    'function': 'SET_VOLTAGE', 'value': (float)
+    'function': 'SET_CURRENT_LIMIT', 'value': (float)
+    'function': 'SET_POWER', 'value': 'ON' | 'OFF'
     """
     log_request(request)
     try:
@@ -228,7 +255,8 @@ def psu():
                 .format(request.method, request.url_rule)
             )
     except Exception as e:
-        return api.response(e)
+        # Handles both ApiException and Exception derivates
+        return api.exception_response(e)
 
 ###############################################################################
 #
@@ -255,9 +283,9 @@ def show_flask_config():
         for key in cfg:
             if key in ('SECRET_KEY', 'MYSQL_DATABASE_PASSWORD'):
                 cfg[key] = '<CENSORED>'
+        return api.response((200, cfg))
     except Exception as e:
-        app.logger.exception(str(e))
-    return api.response(cfg)
+        return api.exception_response(e)
 
 
 #
@@ -329,9 +357,9 @@ def api_doc():
             )
             return response
         else:
-            return api.response({'endpoints': eplist})
+            return api.response((200, {'endpoints': eplist}))
     except Exception as e:
-        api.response(e)
+        api.exception_response(e)
 
 #
 # TODO: Automatic API documentation parsing has issues with options (<int:option>).

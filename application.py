@@ -234,7 +234,10 @@ def teardown_request(error):
     """
     Closes the database again at the end of the request.
     """
-    app.logger.debug("@app.teardown_request")
+    app.logger.debug(
+        "@app.teardown_request ({:.1f}ms)"
+        .format((time.perf_counter() - g.t_real_start) * 1000)
+    )
     if hasattr(g, 'db'):
         g.db.close()
 

@@ -10,10 +10,10 @@
 #   0.1.0   2018.10.11  Initial version.
 #   0.1.1   2018.10.12  Added into.details, bug fixes.
 #   0.1.2   2018.10.13  Changed to named SQL parameters (simpler to read).
+#   0.2.0   2018.10.29  Complies to new api.response().
 #
 #
 import json
-import time
 import logging
 import sqlite3
 
@@ -36,31 +36,56 @@ class PulseHeight:
         3. begin and/or end Return records that fall between begin and end
         'timestamp', 'begin' and 'end' are UNIX datetime stamps.
         """
-        cursor = g.db.cursor()
-        # Extract request parameters
-        timestamp   = request.args.get('timestamp',   None, type=int)
-        begin       = request.args.get('begin',       None, type=int)
-        end         = request.args.get('end',         None, type=int)
-        # Parse SQL
-        sql = "SELECT * FROM sample_pulse_height_data "
-        if timestamp:
-            sql += "WHERE timestamp = :timestamp"
-        elif begin and not end:
-            sql += "WHERE timestamp >= :begin"
-        elif end and not begin:
-            sql += "WHERE timestamp <= :end"
-        elif begin and end:
-            sql += "WHERE timestamp >= :begin AND timestamp <= :end"
-        # Execute query
-        bvars = {'timestamp' : timestamp, 'begin' : begin, 'end' : end}
         try:
+            if not request.json:
+                raise api.InvalidArgument(
+                    "POST has no JSON payload!",
+                    "This service requires 'function' and 'value' arguments."
+                )
+
+            # Extract parameters
+            try:
+                timestamp   = request.json.get('timestamp', None)
+                begin       = request.json.get('begin',     None)
+                end         = request.json.get('end',       None)
+            except Exception as e:
+                raise api.InvalidArgument(
+                    "Argument parsing error",
+                    {'request' : request.json, 'exception' : str(e)}
+                )
+
+            # Convert to desired types
+            timestamp   = int(timestamp) if timestamp else None
+            begin       = int(begin)     if begin     else None
+            end         = int(end)       if end       else None
+
+            # Parse SQL
+            sql = "SELECT * FROM sample_pulse_height_data "
+            if timestamp:
+                sql += "WHERE timestamp = :timestamp"
+            elif begin and not end:
+                sql += "WHERE timestamp >= :begin"
+            elif end and not begin:
+                sql += "WHERE timestamp <= :end"
+            elif begin and end:
+                sql += "WHERE timestamp >= :begin AND timestamp <= :end"
+            # Execute query
+            bvars = {'timestamp' : timestamp, 'begin' : begin, 'end' : end}
+
+        except:
+            app.logger.exception("Query preparations failed!")
+            raise
+
+        # Execute query
+        try:
+            cursor = g.db.cursor()
             result = cursor.execute(sql, bvars)
         except sqlite3.Error as e:
             app.logger.exception(
                 "SQL='{}', bvars='{}'"
                 .format(sql, bvars)
             )
-            data = []
+            raise
         else:
             # https://medium.com/@PyGuyCharles/python-sql-to-json-and-beyond-3e3a36d32853
             # turn result object into a list of row-dictionaries
@@ -70,9 +95,7 @@ class PulseHeight:
             cursor.close()
 
         # if app.config['DEBUG'] == True:
-        return {'data': data, 'debug': {'sql': sql, 'bind variables' : bvars}}
-        # else:
-        #    return {'data': data}
+        return (200, {'data': data, 'debug': {'sql': sql, 'bind variables' : bvars}})
 
 
 # EOF
