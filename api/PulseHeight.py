@@ -24,6 +24,7 @@ import sqlite3
 #
 from flask              import g
 from application        import app
+from .                  import InvalidArgument
 
 class PulseHeight:
 
@@ -38,9 +39,9 @@ class PulseHeight:
         """
         try:
             if not request.json:
-                raise api.InvalidArgument(
-                    "POST has no JSON payload!",
-                    "This service requires 'function' and 'value' arguments."
+                raise InvalidArgument(
+                    "API Request has no JSON payload!",
+                    "This service requires arguments."
                 )
 
             # Extract parameters
@@ -49,7 +50,7 @@ class PulseHeight:
                 begin       = request.json.get('begin',     None)
                 end         = request.json.get('end',       None)
             except Exception as e:
-                raise api.InvalidArgument(
+                raise InvalidArgument(
                     "Argument parsing error",
                     {'request' : request.json, 'exception' : str(e)}
                 )

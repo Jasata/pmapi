@@ -10,28 +10,21 @@
 #   0.1.0   2018.10.11  Initial version.
 #   0.1.1   2018.10.14  Fixed the version output in the logging message.
 #   0.1.2   2018.10.23  Entire Flash application moved into this file.
-#
-#   NOTE: Code in this file gets executed ONLY ONCE, when the uWSGI is started.
-#         Look for @app.before_request and @app.teardown_request decorators for
-#         code that gets executed for each HTTP request.
+#   0.1.3   2018.10.29  Print lapsed ms in @app.teardown_request debug message.
 #
 #
-#   uWSGI configuration (uwsgi.ini) specifies flask app directory to be
-#   ("chdir = /srv/nginx-root/") and that the 'application' is to be found
-#   in this module ("module = application"  =>  'application.py').
+# Code in this file gets executed ONLY ONCE, when the uWSGI is started.
+# The only exceptions are @app.before_request and @app.teardown_request
+# decorated functions, which are executed once per HTTP Request.
 #
-#   If the execution directory ("chdir" in uwsgi.ini) changes,
-#   this file has to be updated accordingly.
 #
-#   NOTE
-#       It appears that Flask has built-in feature to look for
-#       (or require) an object specifically named "application".
+# uWSGI configuration (uwsgi.ini) specifies flask app directory to be
+# ("chdir = /srv/nginx-root/") and that the 'application' is to be found
+# in this module ("module = application"  =>  'application.py').
 #
-#       Since the application is in directory "pmapi", and since
-#       the Flask is created in ./pmapi/__init__.py ("app = Flask()")
-#       the import needs to be:
+# If the execution directory ("chdir" in uwsgi.ini) changes,
+# this file has to be updated accordingly.
 #
-#from pmapi import app as application
 import os
 import time
 import logging
@@ -55,7 +48,7 @@ app = Flask(
     instance_relative_config=True
 )
 
-#
+# TODO
 # Register custom API error handler TESTING!!!!!!!!!
 # (api/__init__.py)
 #from api import custom_api_error_handler
@@ -242,10 +235,4 @@ def teardown_request(error):
         g.db.close()
 
 
-# THIS WOULD NEVER EXECUTED in normal uWSGI usage (just a FYI)
-#if __name__ == "__main__":
-#    application.run()
-
-
 # EOF
-

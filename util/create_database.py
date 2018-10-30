@@ -5,6 +5,7 @@
 # create_database.py - Jani Tammi <jasata@utu.fi>
 #
 #   0.1.0   2018.10.23  Initial version.
+#   0.2.0   2018.10.30  Corrected hitcount table columns.
 #
 import os
 import sqlite3
@@ -29,6 +30,7 @@ drop("pulseheight")
 drop("hitcount")
 drop("testing_session")
 drop("pate")
+drop("psu")
 
 
 try:
@@ -76,16 +78,26 @@ try:
     #       Science data (energy-classified particle hits) is collected in
     #       units of "rotations", as the satellite rorates over its axis.
     #       Each rotation is divided into 10 degree (36) sectors and each
-    #       has the same collection of hit counts (12 + 8 + 7). In addition,
+    #       has the same collection of hit counts (12 + 8). In addition,
     #       there is "37th sector", which is in fact, the sun-pointing
     #       telescope.
     #
     #       Each sector has;
-    #           12  Proton energy classes (channels)
-    #            8  Electron energy classes
-    #            1  AC class
-    #            4  DX classes
+    #           10  Primary Proton energy classes (channels)
+    #            7  Primary Electron energy classes
+    #            2  Secondary Proton energy classes
+    #            1  Secondary Electron energy class
+    #
+    #       Sector naming; sc[00..36], where sector zero is sun-pointing.
+    #
+    #       Both telescopes also collect other hit counters;
+    #
+    #            2  AC classes
+    #            4  D1 classes
+    #            1  D2 class
     #            2  trash classes
+    #
+    #       Telescope naming; st = Sun-pointing Telescope, rt = Rotating Telescope.
     #
     #       Design decision has been made to lay all these in a flat table,
     #       even though this generates more than a thousand columns.
@@ -108,16 +120,23 @@ try:
         session_id      INTEGER NOT NULL,
     """
     cols = []
+    # Sector specific counters
     for sector in range(0,37):
         for proton in range(1,13):
             cols.append("s{:02}p{:02} INTEGER NOT NULL, ".format(sector, proton))
         for electron in range(1,9):
             cols.append("s{:02}e{:02} INTEGER NOT NULL, ".format(sector, electron))
-        cols.append("s{:02}ac INTEGER NOT NULL, ".format(sector))
-        for dx in range(1,5):
-            cols.append("s{:02}dx{:01} INTEGER NOT NULL, ".format(sector, dx))
+    # Telescope specfic counters
+    for telescope in ('st', 'rt'):
+        for ac in range(1, 3):
+            cols.append("{}ac{} INTEGER NOT NULL, ".format(telescope, ac))
+        # D1 hit patterns
+        for d1 in range(1,5):
+            cols.append("{}d1p{:01} INTEGER NOT NULL, ".format(telescope, d1))
+        # D2 hit pattern
+        cols.append("{}d2p1 INTEGER NOT NULL, ".format(telescope))
         for trash in range(1,3):
-            cols.append("s{:02}trash{:01} INTEGER NOT NULL, ".format(sector, trash))
+            cols.append("{}trash{:01} INTEGER NOT NULL, ".format(telescope, trash))
     sql += "".join(cols)
     sql += " FOREIGN KEY (session_id) REFERENCES testing_session (id) )"
     cursor.execute(sql)

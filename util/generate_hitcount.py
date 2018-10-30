@@ -5,6 +5,7 @@
 # generate_hitcount.py - Jani Tammi <jasata@utu.fi>
 #
 #   0.1.0   2018.10.23  Initial version.
+#   0.2.0   2018.10.30  Now adapts to hitcount table columns automatically.
 #
 # https://www.sqlite.org/limits.html
 # SQLITE_MAX_SQL_LENGTH     Default is 1'000'000.
@@ -20,37 +21,47 @@ class Config:
     db_file     = "pmapi.sqlite3"
     table_name  = "hitcount"
     interval    = 15   # in seconds
-    rotations   = 600
+    rotations   = 1200
     max_hits    = 2**20
 
-def generate_sql():
+def get_column_list(cursor, table, exclude = []):
+    """Method that compiles a list of data columns from a table"""
+    if not exclude:
+        exclude = []
+    sql = "SELECT * FROM {} LIMIT 1".format(table)
+    cursor.execute(sql)
+    # Ignore query result and use cursor.description instead
+    return [key[0] for key in cursor.description if key[0] not in exclude]
+
+
+def generate_sql(cursor):
     sql1 = "INSERT INTO {} (rotation, session_id, ".format(Config.table_name)
     sql2 = ") VALUES (?, ?, "
-    cols = []
-    for sector in range(0,37):
-        for proton in range(1,13):
-            cols.append("s{:02}p{:02}, ".format(sector, proton))
-        for electron in range(1,9):
-            cols.append("s{:02}e{:02}, ".format(sector, electron))
-        cols.append("s{:02}ac, ".format(sector))
-        for dx in range(1,5):
-            cols.append("s{:02}dx{:01}, ".format(sector, dx))
-        for trash in range(1,3):
-            cols.append("s{:02}trash{:01}, ".format(sector, trash))
+    cols = get_column_list(cursor, Config.table_name, ['rotation', 'session_id'])
+    sql_binds = ""
     for col in cols:
-        sql1 += col
-        sql2 += "?, "
-    return sql1[:-2] + sql2[:-2] + ")"
+        sql_binds += "?, "
+    return sql1 + ",".join(cols) + sql2 + sql_binds[:-2] + ")"
 
-def generate_packet(session_id):
+def generate_packet(session_id, cursor):
     """Generate tuple"""
+    # Timestamp
     try:
         (generate_packet.timestamp)
     except:
         generate_packet.timestamp = time.time()
     else:
         generate_packet.timestamp += Config.interval
-    nvars = 37 * 27
+    # Number of columns to provide data for
+    try:
+        (generate_packet.nvars)
+    except:
+        generate_packet.nvars = len(get_column_list(
+            cursor,
+            Config.table_name,
+            ['rotation', 'session_id']
+        ))
+    nvars = generate_packet.nvars
     lst = [random.randint(0, Config.max_hits) for x in range(0, nvars)]
     lst.insert(0, session_id)
     lst.insert(0, generate_packet.timestamp)
@@ -79,18 +90,18 @@ if __name__ == '__main__':
     # Generate PATE and testing session
     session_id = generate_session(generate_pate())
 
-    # SQL
-    sql = generate_sql()
     # Clear table
     cursor.execute("DELETE FROM {}".format(Config.table_name))
     connection.commit()
 
+    # SQL
+    sql = generate_sql(cursor)
     # Generate sci data rotations
     try:
         for i in range(0, Config.rotations):
             cursor.execute(
                 sql,
-                generate_packet(session_id)
+                generate_packet(session_id, cursor)
             )
     except:
         print(sql)

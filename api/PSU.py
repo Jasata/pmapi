@@ -55,9 +55,9 @@ import time
 import logging
 import sqlite3
 
-import api
 from flask              import g
 from application        import app
+from .                  import InvalidArgument, Timeout, NotFound
 
 class PSU:
 
@@ -80,7 +80,7 @@ class PSU:
             else:
                 result = cursor.fetchall()
                 if len(result) < 1:
-                    raise api.NotFound(
+                    raise NotFound(
                         "No data in table 'psu'!",
                         "Most likely cause is that the OBC emulator is not running."
                     )
@@ -110,12 +110,12 @@ class PSU:
         has a timeout.
         
         Possible results:
-        (406) api.InvalidArgument()     For any argument related issue.
+        (406) InvalidArgument()         For any argument related issue.
         (200) {'result' : <str>}        On success.
         """
         try:
             if not request.json:
-                raise api.InvalidArgument(
+                raise InvalidArgument(
                     "API Request has no JSON payload!",
                     "This service requires 'function' and 'value' arguments."
                 )
@@ -124,12 +124,12 @@ class PSU:
                 fnc     = request.json.get('function', None)
                 val     = request.json.get('value',    None)
             except Exception as e:
-                raise api.InvalidArgument(
+                raise InvalidArgument(
                     "Argument parsing error",
                     {'request' : request.json, 'exception' : str(e)}
                 )
             if not fnc or not val:
-                raise api.InvalidArgument(
+                raise InvalidArgument(
                     "Missing argument(s) 'function' and/or 'value'",
                     {'request' : request.json}
                 )
@@ -142,20 +142,20 @@ class PSU:
                 try:
                     val = float(val)
                 except Exception as e:
-                    raise api.InvalidArgument(
+                    raise InvalidArgument(
                         "Invalid 'value' argument!",
                         {'request' : request.json, 'exception' : str(e)}
                     )
 
             elif fnc == "SET_POWER":
                 if val not in ("ON", "OFF"):
-                    raise api.InvalidArgument(
+                    raise InvalidArgument(
                         "Invalid 'value', use 'ON' or 'OFF'!",
                         {'request' : request.json}
                     )
 
             else:
-                raise api.InvalidArgument(
+                raise InvalidArgument(
                     "Unrecognized 'function'!",
                     {'request' : request.json}
                 )
@@ -226,7 +226,7 @@ class PSU:
 
             # Timeout?
             if not result:
-                raise api.Timeout(
+                raise Timeout(
                     "PSU command timeout!",
                     {
                         'command.id' : command_id,

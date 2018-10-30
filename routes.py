@@ -190,12 +190,27 @@ def pulseheight():
 #
 @app.route('/api/classifieddata', methods=['GET'])
 def classifieddata():
+    """Classified particle hits
+    TO BE DOCUMENTED."""
     log_request(request)
     try:
         from api.ClassifiedData import ClassifiedData
         return api.response(ClassifiedData.get(request))
     except Exception as e:
         # Handles both ApiException and Exception derivates
+        return api.exception_response(e)
+
+
+#
+# Housekeeping
+#
+@app.route('/api/housekeeping', methods=['GET'])
+def housekeeping():
+    """Not yet implemented"""
+    log_request(request)
+    try:
+        raise api.NotImplemented()
+    except Exception as e:
         return api.exception_response(e)
 
 
