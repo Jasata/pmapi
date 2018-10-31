@@ -12,6 +12,7 @@
 #   0.3.0   2018.10.26  Rewritten to match new design.
 #   0.3.1   2018.10.28  Added docstrings.
 #   0.3.2   2018.10.31  Fixed automatic endpoint listing.
+#   0.3.3   2018.10.31  HTML brackets converted for HTML output only.
 #
 #
 #   IMPORTANT!
@@ -370,7 +371,7 @@ def api_doc():
                 eplist.append({
                     'service'   : rule.endpoint,
                     'methods'   : methods,
-                    'endpoint'  : str(rule).replace('<', '&lt;').replace('>', '&gt;'),
+                    'endpoint'  : str(rule),
                     'doc'       : app.view_functions[rule.endpoint].__doc__
                 })
 
@@ -383,7 +384,7 @@ def api_doc():
                         .format(
                             row['service'],
                             row['methods'],
-                            row['endpoint'],
+                            row['endpoint'].replace('<', '&lt;').replace('>', '&gt;'),
                             htmldoc(row['doc'])
                         )
             html += "</table></body></html>"
