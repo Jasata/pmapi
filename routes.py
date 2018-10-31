@@ -11,6 +11,7 @@
 #   0.2.0   2018.10.20  Route for hit counter data.
 #   0.3.0   2018.10.26  Rewritten to match new design.
 #   0.3.1   2018.10.28  Added docstrings.
+#   0.3.2   2018.10.31  Fixed automatic endpoint listing.
 #
 #
 #   IMPORTANT!
@@ -185,6 +186,7 @@ def pulseheight():
         return api.exception_response(e)
 
 
+
 #
 # Science Data (hit counters)
 #
@@ -201,6 +203,7 @@ def classifieddata():
         return api.exception_response(e)
 
 
+
 #
 # Housekeeping
 #
@@ -212,6 +215,21 @@ def housekeeping():
         raise api.NotImplemented()
     except Exception as e:
         return api.exception_response(e)
+
+
+
+#
+# Register
+#
+@app.route('/api/register/<string:register_id>', methods=['GET', 'POST'])
+def register(register_id):
+    """Not yet implemented"""
+    log_request(request)
+    try:
+        raise api.NotImplemented()
+    except Exception as e:
+        return api.exception_response(e)
+
 
 
 #
@@ -239,7 +257,11 @@ def note():
 #
 # Command interface
 #
-@app.route('/api/psu', methods=['GET', 'POST'])
+@app.route('/api/psu', methods=['GET'])
+@app.route('/api/psu/voltage', methods=['GET', 'POST'])
+@app.route('/api/psu/current', methods=['GET'])
+@app.route('/api/psu/current/limit', methods=['GET', 'POST'])
+@app.route('/api/psu/power', methods=['GET', 'POST'])
 def psu():
     """Agilent power supply remote control.
     
@@ -260,9 +282,11 @@ def psu():
     log_request(request)
     try:
         from api.PSU import PSU
-        if request.method == 'GET':
+        if str(request.url_rule) == '/api/psu' and request.method == 'GET':
             api.response(PSU.get(request))
-        elif request.method == 'POST':
+        elif str(request.url_rule) == '/api/psu/voltage' and request.method == 'POST':
+            api.response(PSU.post(request))
+        elif str(request.url_rule) == '/api/psu/current' and request.method == 'POST':
             api.response(PSU.post(request))
         else:
             raise api.MethodNotAllowed(
@@ -272,6 +296,9 @@ def psu():
     except Exception as e:
         # Handles both ApiException and Exception derivates
         return api.exception_response(e)
+
+
+
 
 ###############################################################################
 #
@@ -337,17 +364,13 @@ def api_doc():
         eplist = []
         for rule in app.url_map.iter_rules():
             if rule.endpoint != 'static':
-                options = {arg : "[{}]".format(arg) for arg in rule.arguments}
-                # This options stuff doesn't work... TODO
-                url = flask.url_for(rule.endpoint, **options)
-                # Strip 'HEAD' and 'OPTIONS', since they are implicit and we do not "serve" them
                 allowed = [method for method in rule.methods if method not in ('HEAD', 'OPTIONS')]
                 methods = ','.join(allowed)
 
                 eplist.append({
                     'service'   : rule.endpoint,
                     'methods'   : methods,
-                    'endpoint'  : url,
+                    'endpoint'  : str(rule).replace('<', '&lt;').replace('>', '&gt;'),
                     'doc'       : app.view_functions[rule.endpoint].__doc__
                 })
 
