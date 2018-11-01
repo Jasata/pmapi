@@ -48,12 +48,6 @@ app = Flask(
     instance_relative_config=True
 )
 
-# TODO
-# Register custom API error handler TESTING!!!!!!!!!
-# (api/__init__.py)
-#from api import custom_api_error_handler
-#from flask import got_request_exception
-#got_request_exception.connect(custom_api_error_handler, app)
 
 #
 # PATE Monitor JSON API implementation version number (integer)

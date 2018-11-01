@@ -175,41 +175,6 @@ def exception_response(ex):
         )
 
 
-#
-# Custom API error handler (registered at 'application.py')
-#
-#   Purpose of this is to catch "Not Found" cases for requests to '/api' and
-#   return JSON API -style responses for them.
-#
-#   Other requests that are deemed not to be REST API calls, should be
-#   responded to in a standard way (with 404 and HTML message payload).
-#
-#   THIS IS WORK IN PROGRESS! I will return to this at somepoint, if/when
-#   I have time for it (because this is not so vital for this solution).
-#
-# https://github.com/flask-restful/flask-restful/issues/579
-#
-from werkzeug.exceptions import HTTPException
-def custom_api_error_handler(ex):
-    from flask import request
-    if request.path[0:5] == "/api/":
-        payload = {
-            'type':         'InternalServerError',
-            'description':  'Internal Error',
-            'method':       request.method,
-            'url':          request.url
-        }
-        if isinstance(exception, HTTPException):
-            payload['type'] = 'HTTPException'
-            payload['description'] = exception.description
-            status_code = exception.code
-        else:
-            payload['description'] = exception.args
-            status_code = 500
-        return jsonify(payload), status_code
-    else:
-        return "bummer", 405
-
 
 #
 # Object code (code that interacts with database) exist as modules.
