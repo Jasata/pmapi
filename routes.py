@@ -376,8 +376,16 @@ def api_doc():
                 })
 
         if 'api.html' in request.url_rule.rule:
-            html = "<!DOCTYPE html><html><head><title>API Listing</title>"
-            html +="<link rel='stylesheet' href='/css/api.css'></head><body>"
+            try:
+                from ext.markdown2 import markdown
+                with open('api/README.md') as f:
+                    readme = markdown(f.read())
+            except:
+                app.logger.exception("Unable to process 'api/README.md'")
+                readme = ''
+            html =  "<!DOCTYPE html><html><head><title>API Listing</title>"
+            html += "<link rel='stylesheet' href='/css/api.css'></head><body>"
+            html += readme
             html += "<table><tr><th>Service</th><th>Methods</th><th>Endpoint</th><th>Documentation</th></tr>"
             for row in eplist:
                 html += "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>" \
