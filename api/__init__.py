@@ -84,110 +84,25 @@ def __make_response(code, payload):
         response.headers['Allow'] = ", ".join(allow)
         response.headers['Content-Type'] = 'application/json'
         #response.headers['Content-Type'] = 'application/vnd.api+json'
+        app.logger.debug(
+            "api.__make_response() normal exit. code: {}, payload={}"
+            .format(response.status, response.response)
+        )
         return response
     except Exception as e:
         # VERY IMPORTANT! Do NOT re-raise the exception!
         app.logger.exception("Internal __make_response() error!")
         # We will try to offer dict instead of Flask.Response...
-        return '''{{
-            "error"     : "Internal Error",
-            "details"   : "{}"
-            }}'''.format(str(e))
-
-
-#
-# Create Flask.Response object for given payload
-# (ApiException, Exception or dictionary)
-#
-# Stanrad usage (Note the unpacking operator!):
-#
-#   from api import ResourceClass
-#   api.response(*ResourceClass.get(request))
-#
-# For exceptions, the 'code' is either taken from the ApiException or
-# defaults to 500 (for regular Exceptions). Use case:
-#
-#   ...
-#   except Exception as e:
-#       api.response(e)
-#
-def response_(data, code=500):
-    """Create Flask.Response object from data, which can be either
-    a dictionary (normally) or an ApiException or Exception."""
-    try:
-        if not data:
-            data = {}
-            #app.logger.critical("api.response(): data cannot be None!")
-            #raise ValueError("Argument 'data' cannot be None!")
-        if not code:
-            app.logger.error("code value 'None' received! Fix your code!")
-            code = 500
-
-        #
-        # Test for acceptable input types
-        #
-        if isinstance(data, Exception):
-            # Now we know 'data' is a class
-            if getattr(data, 'ApiException', None):
-                app.logger.error(
-                    "ApiException: '{}'"
-                    .format(str(data))
-                )
-                payload = data.to_dict()
-                code = data.code
-            else:
-                app.logger.exception(str(data))
-                from traceback import format_exception
-                e = format_exception(type(data), data, data.__traceback__)
-                payload = {
-                    'error' : e[-1],
-                    'trace' : "".join(e[1:-1])
-                }
-                code = 500
-
-        elif isinstance(data, dict):
-            payload = data
-
-        else:
-            raise ValueError("data argument was not any of the accepted types!")
-
-
-        #
-        # Common operations
-        #
-        #   NOTE:   This timing information which is sent to the client,
-        #           can only count for processing this far (obviously).
-        #           Queries with large sets of data, actually take 10x
-        #           or more to parse into JSON and send out as response.
-        payload['api'] = {
-            'version'   : app.apiversion,
-            't_cpu'     : time.process_time() - g.t_cpu_start,
-            't_real'    : time.perf_counter() - g.t_real_start
-        }
-        # NOTE: PLEASE remove 'indent' and 'sort_keys' when developing is done!!!
-        # 'default=str' is useful to handle obscure data, leave it.
-        # (for example; "datetime.timedelta(31) is not JSON serializable")
-        t = time.perf_counter()
-        payload = json.dumps(payload)
-        app.logger.debug("json.dumps(): {}ms".format((time.perf_counter() - t) * 1000))
-        #payload = json.dumps(payload, indent=4, sort_keys=True, default=str)
-
-        response = app.response_class(
-            response    = payload,
-            status      = code,
-            mimetype    = 'application/json'
+        return app.response_class(
+            response = "api.__make_response() Internal Error: {}".format(str(e)),
+            status   = 500
         )
-        allow = [method for method in request.url_rule.methods if method not in ('HEAD', 'OPTIONS')]
-        response.headers['Allow'] = ", ".join(allow)
-        response.headers['Content-Type'] = 'application/json'
-        #response.headers['Content-Type'] = 'application/vnd.api+json'
-        return response
+        #    '{{"error": "api.response(): {}"}}'.format(str(e), )
+        #return '''{{
+        #    "error"     : "Internal Error",
+        #    "details"   : "{}"
+        #    }}'''.format(str(e))
 
-    except Exception as e:
-        # VERY IMPORTANT! Do NOT raise an exception,
-        # or you risk a loop at route handlers
-        app.logger.exception("api.response() error!")
-        return '{{"error": "api.response(): {}"}}'.format(str(e), )
 
 
 #
@@ -197,6 +112,7 @@ def response_(data, code=500):
 def response(response_tuple):
     """Create Flask.Response from provided (code, dict) tuple."""
     return __make_response(response_tuple[0], response_tuple[1])
+
 
 #
 # api.exception_response(ApiException | Exception)
@@ -226,17 +142,19 @@ def exception_response(ex):
                     "ApiException: '{}'"
                     .format(str(ex))
                 )
-                return __make_response(ex.code, ex.to_dict())
+                response_code = ex.code
+                response_payload = ex.to_dict()
             else:
                 # Unexpected error, log trace by using logger.exception()
                 app.logger.exception(str(ex))
                 from traceback import format_exception
                 e = format_exception(type(ex), ex, ex.__traceback__)
-                payload = {
+                response_payload = {
                     "error" : e[-1],
                     "trace" : "".join(e[1:-1])
                 }
-                return __make_response(500, payload)
+                response_code = 500
+            return __make_response(response_code, response_payload)
         else:
             return __make_response(
                 500,
@@ -345,6 +263,7 @@ class NotFound(ApiException):
 
 
 # 405 Method Not Allowed
+# Combination of URI and method is not supported
 class MethodNotAllowed(ApiException):
     """Request method is not supported."""
     def __init__(
@@ -409,6 +328,8 @@ class InternalError(ApiException):
 
 
 # 501 Not Implemented
+# Route exists, implementation does not
+# For request to something that is not planned, return 405
 class NotImplemented(ApiException):
     """Requested functionality is not yet implemented."""
     def __init__(

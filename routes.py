@@ -398,15 +398,24 @@ def api_doc():
         else:
             return api.response((200, {'endpoints': eplist}))
     except Exception as e:
-        api.exception_response(e)
+        return api.exception_response(e)
 
 #
-# TODO: Automatic API documentation parsing has issues with options (<int:option>).
-#       Needs to be fixed, at some point...
+# Catch-all for non-existent API requests
 #
-#@app.route('/post/<int:post_id>')
-#def show_post(post_id):
-#    pass
+@app.route('/api')
+@app.route('/api/')
+@app.route('/api/<path:path>')
+def api_not_implemented(path = ''):
+    log_request(request)
+    try:
+        raise api.MethodNotAllowed(
+            "Requested API endpoint ('{}') does not exist!"
+            .format("/api/" + path)
+        )
+    except Exception as e:
+        return api.exception_response(e)
+
 
 ###############################################################################
 #
@@ -443,12 +452,20 @@ def api_doc():
 #     return send_from_directory('img', path)
 
 #
+# NOTE: Development time request from Rameez;
+#       Allow directory listings under ui/
+#       Configured into /etc/nginx/sites-available/default
+#       You should not have index.html or listing will not show.
+#
+
+
+#
 # Catch-all for other paths (UI HTML files)
 #
 @app.route('/<path:path>', methods=['GET'])
 # No-path case
 @app.route('/', methods=['GET'])
-def send_ui(path = 'index.html'):
+def send_ui(path = 'dev_index.html'):
     log_request(request)
     return send_from_directory('ui', path)
 
