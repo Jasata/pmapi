@@ -21,7 +21,7 @@ class Config:
     db_file     = "pmapi.sqlite3"
     table_name  = "hitcount"
     interval    = 15   # in seconds
-    rotations   = 1200
+    rotations   = 175200 # 1/12 of a year (@15 second rotations)
     max_hits    = 2**20
 
 def get_column_list(cursor, table, exclude = []):

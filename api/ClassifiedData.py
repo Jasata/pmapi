@@ -45,18 +45,133 @@ from .                  import InvalidArgument
 
 class ClassifiedData:
 
+    # Query and bind variables
+    sql         = ""
+    bvars       = {}
+    # Arguments
+    fields      = None
+    begin       = None
+    end         = None
+    timestamp   = None
+
+    @staticmethod
+    def __get_pk(cursor, table):
+        """Returns a list of primary key columns for the table.
+        Potentially vulnerable to SQL injection - avoid using with user input!"""
+        # pragma_table_info() column:
+        # cid           Column ID number
+        # name          Column name
+        # type          INTEGER | DATETIME | ...
+        # notnull       1 = NOT NULL, 0 = NULL
+        # dflt_value    Default value
+        # pk            1 = PRIMARY KEY, 0 = not
+        cursor.execute(
+            "SELECT name FROM pragma_table_info('{}') WHERE pk = 1;"
+            .format(table)
+        )
+        return [row[0] for row in cursor]
+
     @staticmethod
     def __column_list(cursor, table, exclude = []):
         """Method that compiles a list of data columns from a table"""
-        if not exclude:
-            exclude = []
-        sql = "SELECT * FROM {} LIMIT 1".format(table)
-        cursor.execute(sql)
+        cursor.execute("SELECT * FROM {} LIMIT 1".format(table))
         # Ignore query result and use cursor.description instead
         return [key[0] for key in cursor.description if key[0] not in exclude]
 
-    @staticmethod
-    def get(request):
+    def __init__(self, request):
+        """Parses request arguments."""
+        try:
+            if request.args:
+                # Raise exception for request unsupported arguments
+                for k, _ in request.args.items():
+                    if k not in ('fields', 'begin', 'end', 'timestamp'):
+                        raise InvalidArgument("Unsupported argument '{}'".format(k))
+                try:
+                    fields      = request.args.get('fields',    None)
+                    timestamp   = request.args.get('timestamp', None)
+                    begin       = request.args.get('begin',     None)
+                    end         = request.args.get('end',       None)
+                except Exception as e:
+                    raise InvalidArgument(
+                        "Argument parsing error",
+                        {'arguments' : request.args, 'exception' : str(e)}
+                    )
+
+                # Convert to desired types
+                self.fields     = fields.split(',') if fields    else None
+                self.timestamp  = int(timestamp)    if timestamp else None
+                self.begin      = int(begin)        if begin     else None
+                self.end        = int(end)          if end       else None
+
+        except Exception as e:
+            raise InvalidArgument(
+                "Parameter extraction failed!",
+                str(e)
+            )
+
+
+    def query(self):
+        """Processes HTTP Request arguments and executes the query.
+        Returns SQLite3.Cursor object (DataObject requirement)."""
+        #
+        # Prepare SQL Statement
+        #
+        try:
+            cursor = g.db.cursor()
+            # Generate selected columns list
+            # NOTE: .session_id is largely for internal purposes and
+            #       not needed among the results.
+            cols = ClassifiedData.__column_list(
+                cursor,
+                table   = 'hitcount',
+                exclude = ['session_id']
+            )
+            # If fields is defined, filter out the rest
+            # (with the exception of primary key - that must always be included)
+            if self.fields:
+                app.logger.debug("Filtering with '{}'".format(self.fields))
+                primarykeys = ClassifiedData.__get_pk(cursor, 'hitcount')
+                cols = [col for col in cols if col in self.fields or col in primarykeys]
+
+            # Parse SQL statement
+            sql = "SELECT " + ",".join(cols) + " FROM hitcount "
+            if self.timestamp:
+                sql += "WHERE rotation = :timestamp"
+            elif self.begin and not self.end:
+                sql += "WHERE rotation >= :begin"
+            elif self.end and not self.begin:
+                sql += "WHERE rotation <= :end"
+            elif self.begin and self.end:
+                sql += "WHERE rotation >= :begin AND rotation <= :end"
+            self.sql = sql
+            # Bind variables for the query
+            self.bvars = {
+                'timestamp' : self.timestamp,
+                'begin'     : self.begin,
+                'end'       : self.end
+            }
+        except:
+            app.logger.exception("SQL parsing failed!")
+            raise
+
+        #
+        # Execute query
+        #
+        try:
+            cursor.execute(self.sql, self.bvars)
+        except:
+            app.logger.exception(
+                "Query failure! SQL='{}', bvars='{}'"
+                .format(self.sql, self.bvars)
+            )
+            raise
+
+        # Must not close the cursor!
+        return cursor
+
+
+
+    def get(self):
         """
         Return hit counter data in JSON format. Three allowed usages:
         1. (no arguments)   All records are returned
@@ -64,74 +179,34 @@ class ClassifiedData:
         3. begin and/or end Return records that fall between begin and end
         'timestamp', 'begin' and 'end' are UNIX datetime stamps.
         """
-        # Extract parameters from JSON
-        try:
-            if request.json:
-                try:
-                    timestamp   = request.json.get('timestamp', None)
-                    begin       = request.json.get('begin',     None)
-                    end         = request.json.get('end',       None)
-                except Exception as e:
-                    raise InvalidArgument(
-                        "Argument parsing error",
-                        {'request' : request.json, 'exception' : str(e)}
-                    )
+        cursor = self.query()
+        # Convert result into a dictionary
+        data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
 
-                # Convert to desired types
-                timestamp   = int(timestamp) if timestamp else None
-                begin       = int(begin)     if begin     else None
-                end         = int(end)       if end       else None
-
-            else:
-                # Basically, SELECT all rows
-                timestamp   = None
-                begin       = None
-                end         = None
-        except:
-            app.logger.exception("Parameter extraction failed!")
-            raise
-
-
-        # Prepare SQL Statement
-        try:
-            cursor = g.db.cursor()
-            # Generate selected columns list
-            cols = ClassifiedData.__column_list(
-                cursor,
-                table = 'hitcount',
-                exclude = ['session_id']
-            )
-            sql = "SELECT " + ",".join(cols) + " FROM hitcount "
-            if timestamp:
-                sql += "WHERE rotation = :timestamp"
-            elif begin and not end:
-                sql += "WHERE rotation >= :begin"
-            elif end and not begin:
-                sql += "WHERE rotation <= :end"
-            elif begin and end:
-                sql += "WHERE rotation >= :begin AND rotation <= :end"
-            # Bind variables for the query
-            bvars = {'timestamp' : timestamp, 'begin' : begin, 'end' : end}
-        except:
-            app.logger.exception("SQL parsing failed!")
-            raise
-
-
-        # Execute query
-        try:
-            result = cursor.execute(sql, bvars)
-            # Convert result into a dictionary
-            data = [dict(zip([key[0] for key in cursor.description], row)) for row in result]
-        except:
-            app.logger.exception(
-                "Query failure! SQL='{}', bvars='{}'"
-                .format(sql, bvars)
-            )
-            raise
-        finally:
-            cursor.close()
+        # NOTE: data is to be a list of dictionaries
+        #return data, {"sql" : self.sql, "bind variables" : self.bvars}
 
         # TODO: obey app.config["DEBUG"]
-        return (200, {'data': data, 'debug': {'sql': sql, 'bind variables' : bvars}})
- 
+        if app.config.get("DEBUG", False):
+            return (
+                200,
+                {
+                    "data"          : data,
+                    "query details" : {
+                        "sql"               : self.sql,
+                        "bind variables"    : self.bvars,
+                        "fields"            : self.fields or "ALL"
+                    }
+                }
+            )
+        else:
+            return (200, {"data": data})
+
+
+
+    def csv():
+        # Simply return the cursor. Api will stream it out.
+        return self.query()
+
+
 # EOF

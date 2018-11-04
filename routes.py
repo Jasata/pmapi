@@ -193,15 +193,23 @@ def pulseheight():
 #
 @app.route('/api/classifieddata', methods=['GET'])
 def classifieddata():
-    """Classified particle hits
-    TO BE DOCUMENTED."""
+    """PATE Classified particle hits.
+    
+    Accepted URI arguments:
+    begin - PATE timestamp
+    end - PATE timestamp
+    fields - A comma separated list of fields to return
+    
+    Arguments 'begin' and 'end' are UNIX timestamps with 1 ms accuracy."""
     log_request(request)
     try:
         from api.ClassifiedData import ClassifiedData
-        return api.response(ClassifiedData.get(request))
+        return api.response(ClassifiedData(request).get())
     except Exception as e:
         # Handles both ApiException and Exception derivates
         return api.exception_response(e)
+
+
 
 
 
@@ -222,7 +230,7 @@ def housekeeping():
 #
 # Register
 #
-@app.route('/api/register/<string:register_id>', methods=['GET', 'POST'])
+@app.route('/api/register/<int:register_id>', methods=['GET', 'POST'])
 def register(register_id):
     """Not yet implemented"""
     log_request(request)
@@ -299,6 +307,37 @@ def psu():
         return api.exception_response(e)
 
 
+
+
+###############################################################################
+#
+# CSV exports
+#
+#
+@app.route('/csv/classifieddata', methods=['GET'])
+def csv_classifieddata():
+    log_request(request)
+    try:
+        from api.ClassifiedData import ClassifiedData
+        # Use .query() method which returns sqlite3.Cursor object
+        return api.stream_result_as_csv(ClassifiedData(request).query())
+    except Exception as e:
+        app.logger.exception(
+            "CSV generation failure! " + str(e)
+        )
+        raise
+
+
+@app.route('/csv/pulseheight', methods=['GET'])
+def csv_pulseheight():
+    log_request(request)
+    return app.response_class(status = 501, mimetype = "text/html")
+
+
+@app.route('/csv/housekeeping', methods=['GET'])
+def csv_housekeeping():
+    log_request(request)
+    return app.response_class(status = 501, mimetype = "text/html")
 
 
 ###############################################################################

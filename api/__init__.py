@@ -11,6 +11,7 @@
 #   0.2.0   2018.10.23  Content moved to top-level application.py.
 #   0.2.1   2018.10.25  Added API Exception classes.
 #   0.3.0   2018.10.29  Enhanced Flask.Response creation.
+#   0.4.0   2018.11.04  Changes for CSV streaming support.
 #
 #
 #   Module for PATE Monitor Resource Objects/Classes and API
@@ -29,17 +30,40 @@
 #
 #   Resource Objects/Classes
 #
-#       Objects implement following public CRUD functions (if supporting):
-#       (C) .post()     POST (create entity)
-#       (R) .get()      GET (fetch-type)
-#       (R) .search()   GET (search-type)
-#       (U) .patch()    PATCH and PUT (update entity)
-#       (D) .delete()   DELETE (delete specified entity)
+#       Objects may implement following public JSON CRUD functions:
+#       (C) .post()     POST (create entity) -> (code:int, payload:dict):tuple      code: 200, payload: {'id' : <id:int>}
+#       (R) .get()      GET (fetch-type)     -> (code:int, payload:dict):tuple      code: 200, payload: {'data' : [<item:dict>]}
+#       (R) .search()   GET (search-type)    -> (code:int, payload:dict):tuple      code: 200, payload: {'data' : [<item:dict>]}
+#       (U) .patch()    PATCH, PUT (update)  -> (code:int, payload:dict):tuple
+#       (D) .delete()   DELETE               -> (code:int, None):tuple
 #
-#       All functions MUST return a tuple!
-#       (<data dictionary>, <HTTP response code>)
-#       Data dictionary may be None
+#       All JSON functions MUST return a tuple!
 #
+#       DataObjects may also implement a CSV extraction method by means of
+#       .query() -> SQLite.Cursor method and
+#       api.stream_result_as_csv(result:SQLite.Cursor)
+#       Implementation belongs into the 'route.py':
+#
+#       @app.route('/csv/classifieddata', methods=['GET'])
+#       def csv_classifieddata():
+#           log_request(request)
+#           try:
+#               from api.ClassifiedData import ClassifiedData
+#               return api.stream_result_as_csv(ClassifiedData(request).query())
+#           except Exception as e:
+#               app.logger.exception(
+#                   "CSV generation failure! " + str(e)
+#               )
+#               raise
+#
+#
+#   DataObject code (code that interacts with database) is written as separate
+#   modules (Python source files) in this directory. 
+# Classes model data by providing CRUD interactions and returning
+# data as dictionaries (or list of dictionaries, for searches)
+# - or they raise ApiExceptions (see this file) when necessary.
+#
+
 import time
 import json
 
@@ -54,12 +78,18 @@ from application    import app
 # API internal / Generate Flask.Response from HTTP response code and data
 # dictionary.
 #
+# Argument
+#   code_payload        tuple(int:code, dict:payload)
+#
 def __make_response(code, payload):
     """Generate Flask.Response from provided response code and dictionary."""
+    # Paranoia check
     assert(isinstance(payload, dict))
+    assert(isinstance(code, int))
+
     try:
         #
-        # Common operations
+        # Common api element for JSON responses
         #
         payload['api'] = {
             'version'   : app.apiversion,
@@ -67,12 +97,12 @@ def __make_response(code, payload):
             't_real'    : time.perf_counter() - g.t_real_start
         }
         # NOTE: PLEASE remove 'indent' and 'sort_keys' when developing is done!!!
-        # 'default=str' is useful to handle obscure data, leave it.
+        # 'default=str' is useful setting to handle obscure data, leave it.
         # (for example; "datetime.timedelta(31) is not JSON serializable")
         # https://stackoverflow.com/questions/7907596/json-dumps-vs-flask-jsonify
         t = time.perf_counter()
-        payload = json.dumps(payload, indent=4, sort_keys=True, default=str)
-        #payload = json.dumps(payload)
+        #payload = json.dumps(payload, indent=4, sort_keys=True, default=str)
+        payload = json.dumps(payload)
         app.logger.debug("REMOVE SORT! json.dumps(): {:.1f}ms".format((time.perf_counter() - t) * 1000))
 
         response = app.response_class(
@@ -81,13 +111,13 @@ def __make_response(code, payload):
             mimetype    = 'application/json'
         )
         allow = [method for method in request.url_rule.methods if method not in ('HEAD', 'OPTIONS')]
-        response.headers['Allow'] = ", ".join(allow)
+        response.headers['Allow']        = ", ".join(allow)
         response.headers['Content-Type'] = 'application/json'
         #response.headers['Content-Type'] = 'application/vnd.api+json'
-        app.logger.debug(
-            "api.__make_response() normal exit. code: {}, payload={}"
-            .format(response.status, response.response)
-        )
+        # app.logger.debug(
+        #     "api.__make_response() normal exit. code: {}, payload={}"
+        #     .format(response.status, response.response)
+        # )
         return response
     except Exception as e:
         # VERY IMPORTANT! Do NOT re-raise the exception!
@@ -97,16 +127,11 @@ def __make_response(code, payload):
             response = "api.__make_response() Internal Error: {}".format(str(e)),
             status   = 500
         )
-        #    '{{"error": "api.response(): {}"}}'.format(str(e), )
-        #return '''{{
-        #    "error"     : "Internal Error",
-        #    "details"   : "{}"
-        #    }}'''.format(str(e))
 
 
 
 #
-# api.response(code, payload)
+# api.response((code:int, payload:dict):tuple) -> Flask.Response
 # JSON Flask.Response create function for Flask route handlers
 #
 def response(response_tuple):
@@ -125,12 +150,12 @@ def response(response_tuple):
 def exception_response(ex):
     """Generate JSON payload from ApiException or Exception object."""
     if not ex:
-        app.logger.error("Function received arguemnt None!")
+        app.logger.error("Function received argument: None!")
         return __make_response(
             500,
             {
                 "error"   : "Unknown",
-                "details" : "api.exception_response() received None!"
+                "details" : "api.exception_response() received: None!"
             }
         )
     # 
@@ -175,18 +200,73 @@ def exception_response(ex):
         )
 
 
-
 #
-# Object code (code that interacts with database) exist as modules.
-# (As separate Python files in this directory)
-# Classes model data by providing CRUD interactions and returning
-# data as dictionaries (or list of dictionaries, for searches)
-# - or they raise ApiExceptions (see this file) when necessary.
+# UNDER DEVELOPMENT
+# https://stackoverflow.com/questions/28011341/create-and-download-a-csv-file-from-a-flask-view
 #
+# Takes queried cursor and streams it out as CSV file
+def stream_result_as_csv(cursor):
+    """Takes one argument, SQLite3 query result, which is streamed out as CSV file."""
+    import io       # for StringIO
+    import csv
+    # Generator object for the Response() to use
+    def generate(cursor):
+        data = io.StringIO()
+        writer = csv.writer(data)
 
+        # Yield header
+        writer.writerow(
+            (key[0] for key in cursor.description)
+        )
+        yield data.getvalue()
+        data.seek(0)
+        data.truncate(0)
+
+        # Yeild data
+        for row in cursor:
+            writer.writerow(row)
+            yield data.getvalue()
+            data.seek(0)
+            data.truncate(0)
+
+    from werkzeug.datastructures    import Headers
+    from werkzeug.wrappers          import Response
+    from flask                      import stream_with_context
+    #
+    # Response header
+    #
+    headers = Headers()
+    headers.set(
+        'Content-Disposition',
+        'attachment',
+        filename = time.strftime(
+            "%Y-%m-%d %H.%M.%S.csv",
+            time.localtime(time.time())
+        )
+    )
+
+    # stream the response as the data is generated
+    return Response(
+        stream_with_context(generate(cursor)),
+        mimetype='text/csv',
+        headers=headers
+    )
+
+
+
+###############################################################################
+#
 #
 # API Exception classes
 #
+#
+#   These JSON API exceptions allow DataObjects to reply with specification
+#   defined responses for various exceptional conditions, simply by raising
+#   the appropriate exception. Route handlers (in 'route.py') catch these
+#   exceptions and route them into api.exception_response() function (found
+#   in this file). Exceptions are then converted into HTTP responses.
+#
+
 class ApiException(Exception):
 
     # Used to identify objects based on ApiException and its subclasses.
