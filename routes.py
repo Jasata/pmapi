@@ -169,19 +169,13 @@ def log_request(request):
 #
 # Sample Pulse Height Data (to be calibration data?)
 #
-@app.route('/api/pulseheight', methods=['GET', 'POST'])
+@app.route('/api/pulseheight', methods=['GET'])
 def pulseheight():
+    """"""
     log_request(request)
     try:
-        # TODO: Remove this request.method test, disallow POST
-        if request.method == 'GET':
-            from api.PulseHeight import PulseHeight
-            return api.response(PulseHeight.get(request))
-        else:
-            raise api.MethodNotAllowed(
-                "Method {} is not supported for '{}'"
-                .format(request.method, request.url_rule)
-            )
+        from api.PulseHeight import PulseHeight
+        return api.response(PulseHeight(request).get())
     except Exception as e:
         # Handles both ApiException and Exception derivates
         return api.exception_response(e)
@@ -192,7 +186,8 @@ def pulseheight():
 # Science Data (hit counters)
 #
 @app.route('/api/classifieddata', methods=['GET'])
-def classifieddata():
+@app.route('/api/classifieddata/<string:function>', methods=['GET'])
+def classifieddata(function=None):
     """PATE Classified particle hits.
     
     Accepted URI arguments:
@@ -204,7 +199,14 @@ def classifieddata():
     log_request(request)
     try:
         from api.ClassifiedData import ClassifiedData
-        return api.response(ClassifiedData(request).get())
+        if str(request.url_rule) == '/api/classifieddata':
+            return api.response(ClassifiedData(request).get())
+        if str(request.url_rule) == '/api/classifieddata/<string:function>':
+            if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
+                raise api.InvalidArgument(
+                    "Function '{}' is not supported!".format(function)
+                )
+            return api.response(ClassifiedData(request).get(function))
     except Exception as e:
         # Handles both ApiException and Exception derivates
         return api.exception_response(e)
@@ -414,6 +416,13 @@ def api_doc():
                     'doc'       : app.view_functions[rule.endpoint].__doc__
                 })
 
+
+        #
+        # Sort eplist based on 'endpoint'
+        #
+        eplist = sorted(eplist, key=lambda k: k['endpoint'])
+
+
         if 'api.html' in request.url_rule.rule:
             try:
                 from ext.markdown2 import markdown
@@ -450,10 +459,12 @@ def api_doc():
 #
 # Catch-all for non-existent API requests
 #
-@app.route('/api')
-@app.route('/api/')
-@app.route('/api/<path:path>')
+@app.route('/api', methods=['GET', 'POST', 'PATCH', 'PUT', 'DELETE'])
+@app.route('/api/', methods=['GET', 'POST', 'PATCH', 'PUT', 'DELETE'])
+@app.route('/api/<path:path>', methods=['GET', 'POST', 'PATCH', 'PUT', 'DELETE'])
 def api_not_implemented(path = ''):
+    """Catch-all route for '/api*' access attempts that do not match any defined routes.
+    "405 Method Not Allowed" JSON reply is returned."""
     log_request(request)
     try:
         raise api.MethodNotAllowed(

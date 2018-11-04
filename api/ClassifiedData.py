@@ -9,6 +9,7 @@
 #
 #   0.1.0   2018.10.20  Initial version.
 #   0.2.0   2018.10.29  Complies to new api.response() specs.
+#   0.3.0   2018.11.04  Complies with new DataObject pattern.
 #
 #
 #   Hit counter values for energy and type classified (by PATE).
@@ -26,6 +27,7 @@
 #   Each sector has particle class counters (representing energy levels);
 #       12 proton counters
 #        8 electron counters
+#   In addition, each telescope has
 #        1 AC counter
 #        4 DX counters
 #        2 Trash counters
@@ -110,7 +112,7 @@ class ClassifiedData:
             )
 
 
-    def query(self):
+    def query(self, aggregate=None):
         """Processes HTTP Request arguments and executes the query.
         Returns SQLite3.Cursor object (DataObject requirement)."""
         #
@@ -128,13 +130,24 @@ class ClassifiedData:
             )
             # If fields is defined, filter out the rest
             # (with the exception of primary key - that must always be included)
+            primarykeys = ClassifiedData.__get_pk(cursor, 'hitcount')
             if self.fields:
                 app.logger.debug("Filtering with '{}'".format(self.fields))
-                primarykeys = ClassifiedData.__get_pk(cursor, 'hitcount')
                 cols = [col for col in cols if col in self.fields or col in primarykeys]
 
+            if aggregate:
+                # For aggregated queries, remove PK columns
+                cols = ",".join([
+                    "{0}({1}) as {1}".format(aggregate, col)
+                    for col in cols if col not in primarykeys
+                ])
+                #for pk in primarykeys:
+                #    cols.remove(pk)
+            else:
+                cols = ",".join(cols)
+
             # Parse SQL statement
-            sql = "SELECT " + ",".join(cols) + " FROM hitcount "
+            sql = "SELECT " + cols + " FROM hitcount "
             if self.timestamp:
                 sql += "WHERE rotation = :timestamp"
             elif self.begin and not self.end:
@@ -171,7 +184,7 @@ class ClassifiedData:
 
 
 
-    def get(self):
+    def get(self, aggregate=None):
         """
         Return hit counter data in JSON format. Three allowed usages:
         1. (no arguments)   All records are returned
@@ -179,14 +192,11 @@ class ClassifiedData:
         3. begin and/or end Return records that fall between begin and end
         'timestamp', 'begin' and 'end' are UNIX datetime stamps.
         """
-        cursor = self.query()
+        cursor = self.query(aggregate)
         # Convert result into a dictionary
         data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
 
-        # NOTE: data is to be a list of dictionaries
-        #return data, {"sql" : self.sql, "bind variables" : self.bvars}
 
-        # TODO: obey app.config["DEBUG"]
         if app.config.get("DEBUG", False):
             return (
                 200,
@@ -204,7 +214,7 @@ class ClassifiedData:
 
 
 
-    def csv():
+    def csv(self):
         # Simply return the cursor. Api will stream it out.
         return self.query()
 
