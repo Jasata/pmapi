@@ -189,13 +189,36 @@ def pulseheight():
 @app.route('/api/classifieddata/<string:function>', methods=['GET'])
 def classifieddata(function=None):
     """PATE Classified particle hits.
+
+    Data is logically grouped into full rotations, each identified by the
+    timestamp when the rotation started. Information on rotational period
+    or starting time of each sector is not available within data. It must
+    be deciphered separately, if needed.
     
-    Accepted URI arguments:
+    URI arguments:
     begin - PATE timestamp
     end - PATE timestamp
     fields - A comma separated list of fields to return
     
-    Arguments 'begin' and 'end' are UNIX timestamps with 1 ms accuracy."""
+    Arguments 'begin' and 'end' are datetime data in timestamp format (TBS) and
+    are compared against the primary key value 'rotation'.
+    While the timestamp format remains without specification,
+    Python timestamps (UNIX timestamps with fractions) should be used.
+    
+    GET /api/classifieddata
+
+    A JSON list of objects is returned. Among object properties, primary key
+    'rotation' is always included, regardless what 'fields' argument specifies.
+    Data exceeding 7 days should not be requested. For more data, CSV services
+    should be used.
+
+    GET /api/classifieddata/<string:function>
+
+    Unlike in the above described API endpoint, these responses do not
+    explicitly include primary key field ('rotation'), because that would
+    defeat the purpose of the aggregate functions. Allowed aggregate functions
+    are: avg, sum, min, max, count.
+    """
     log_request(request)
     try:
         from api.ClassifiedData import ClassifiedData
@@ -358,6 +381,8 @@ def csv_housekeeping():
 #
 @app.route('/sys/cfg', methods=['GET'])
 def show_flask_config():
+    """Middleware (Flask application) configuration. Sensitive entries are
+    censored."""
     log_request(request)
     try:
         cfg = {}
@@ -390,11 +415,23 @@ def show_flask_config():
 @app.route('/api.html', methods=['GET'])
 @app.route('/sys/api', methods=['GET'])
 def api_doc():
-    """Generate API document on available endpoints and return it either as JSON or as a HTML/TABLE.
-    This functionality replies on PEP 257 (https://www.python.org/dev/peps/pep-0257/)
-    convention for docstrings and Flask micro framework route ('rule') mapping
-    to generate basic information listing on all the available REST API functions.
-    This call has no arguments."""
+    """JSON API Documentation.
+
+    Generates API document from the available endpoints. This functionality
+    replies on PEP 257 (https://www.python.org/dev/peps/pep-0257/) convention
+    for docstrings and Flask micro framework route ('rule') mapping to
+    generate basic information listing on all the available REST API functions.
+
+    This call takes no arguments.
+    
+    GET /sys/api
+    
+    List of API endpoints is returned in JSON.
+    
+    GET /api.html
+    
+    The README.md from /api is prefixed to HTML content. List of API endpoints
+    is included as a table."""
     def htmldoc(docstring):
         """Some HTML formatting for docstrings."""
         result = None
@@ -513,7 +550,7 @@ def api_not_implemented(path = ''):
 # NOTE: Development time request from Rameez;
 #       Allow directory listings under ui/
 #       Configured into /etc/nginx/sites-available/default
-#       You should not have index.html or listing will not show.
+#       You should not have index.html in '/ui', or listing will not show.
 #
 
 
@@ -524,6 +561,7 @@ def api_not_implemented(path = ''):
 # No-path case
 @app.route('/', methods=['GET'])
 def send_ui(path = 'dev_index.html'):
+    """Send static HTML/CSS/JS/images/... content."""
     log_request(request)
     return send_from_directory('ui', path)
 
