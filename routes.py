@@ -13,21 +13,18 @@
 #   0.3.1   2018.10.28  Added docstrings.
 #   0.3.2   2018.10.31  Fixed automatic endpoint listing.
 #   0.3.3   2018.10.31  HTML brackets converted for HTML output only.
+#   0.3.4   2018.11.05  Comments and docstrings.
 #
 #
-#   IMPORTANT!
+#   Actual processing is to be done API resource classes/objects. HTTP response
+#   should be created by API services (written in 'api/__init__.py'). Route
+#   handlers need to enclose all their code into a try ... except block and
+#   in the event of an exception, return with api.exception_response().
+#   Normal return should be done with:
 #
-#       Actual processing is to be done API resource classes/objects and
-#       the REST API route handler returns ALWAYS with 'api.response()'.
-#       REST API implmentation strategy requires that the route handler
-#       encloses whatever code it needs to run, into a 'try ... except'.
-#
-#       API Response generator 'api.response()' handles three kinds of input:
-#           - Dictionaries (normal outcome)
-#           - ApiExceptions (recognized issues)
-#           - Exceptions (unexpected errors)
-#       Response generator WILL create a HTTP response object with JSON
-#       payload for any of the input types.
+#       api.response()              Normal JSON replies
+#       api.exception_response()    Any exception into JSON error reply
+#       api.stream_result_as_csv()  Stream SQLite3.Cursor out as CSV
 #
 #
 #   PATTERN FOR ROUTES
@@ -39,39 +36,20 @@
 #           try:
 #               from api import ResourceObject
 #               if request.method == 'GET':
-#                   api.response(*ResourceObject.get(request))
+#                   api.response(ResourceObject(request).get())
 #               elif request.method == 'POST':
-#                   api.response(*ResourceObject.post(request))
+#                   api.response(ResourceObject(request).post())
 #               else:
 #                   raise api.MethodNotAllowed(
 #                       "Method '{}' not supported for '{}'"
 #                       .format(request.method, request.url_rule)
 #                   )
 #           except Exception as e:
-#               return api.response(e)
+#               return api.exception_response(e)
 #
-#       Modify docstring, endpoint and the ResourceObject (at least).
+#   (Modify docstring, endpoint and the ResourceObject (at least).)
 #
 #
-#   REST actions (std scheme)
-#
-#       GET     Retrieve all/filtered resources
-#       HEAD    Retrieve headers of all/filtered resources
-#       POST    Create a new resource
-#       PUT     Update a resource
-#       DELETE  Delete a resource
-#       OPTIONS Return available HTTP methods and other options
-#
-#   NOTE: POST is NOT idempotent!
-#
-#       GET {id}            Retrieve specified resource
-#       GET [{filter},...]  Retrieve matching resources
-#       GET                 Retrieve all resources
-#       HEAD                (same as GET)
-#       POST                Create resource (or issue command)
-#       PUT                 Update resource {id} in body
-#       DELETE {id, ...}    Delete identified resource(s)
-#       OPTIONS             List supported request actions
 #
 import sys
 import time
@@ -83,7 +61,7 @@ from flask          import request
 from flask          import Response
 from flask          import send_from_directory
 from flask          import g
-# Our Flask application instance
+
 from application    import app
 
 # ApiException classes, data classes
@@ -130,26 +108,6 @@ def log_request(request):
 #       Search provides zero to N search criteria and yields in zero to N results.
 #       Fetch provides a key (ID or elements that make up the primary key) and
 #       can only return the specified (one) item or "404 Not Found".
-#
-#   HTTP Return codes
-#       verb    response                payload
-#       GET     "200 OK"                'data': [] | {}     List or object, depending on fetch or search
-#       GET     "404 Not Found"         'error':<str>       Fetch specified non-existent PK/ID
-#       POST    "201 Created"           'id':<int>          INSERT successful, return new ID
-#       POST    "404 Not Found"         'error':<str>       Entity ID not found (wrong PK)
-#       POST    "405 Method Not Allowed"'error':<str>       POST is unsupported
-#       POST    "406 Not Acceptable"    'error':<str>       Problems with provided values (data quality/type issues)
-#       POST    "409 Conflict"          'error':<str>       Unique/PK violation, Foreign key not found (structural issues)
-#       PUT == PATCH in this implementation
-#       PATCH   "200 OK"                (entire object)     UPDATE was successful, SELECT new data
-#       PATCH   "404 Not Found"         'error':<str>       Entity ID not found (wrong PK)
-#       PATCH   "405 Method Not Allowed"'error':<str>       PATCH is unsupported
-#       PATCH   "406 Not Acceptable"    'error':<str>       Problems with provided values
-#       PATCH   "409 Conflict"          'error':<str>       Unique/PK violation, Foreign key not found (structural issues)
-#       DELETE  "200 OK"                None                Delete was successfull
-#       DELETE  "404 Not Found"         'error':<str>       Identified item not found
-#       DELETE  "405 Method Not Allowed"'error':<str>       DELETE is unsupported
-#       DELETE  "409 Conflict"          'error':<str>       Unique/PK violation, Foreign key not found
 #
 #   NOTE:   "401 Unauthorized" needs to be added when PATE Monitor becomes an EGSE solution.
 #           This needs to work WITH the @requires_roles('admin', 'user') or @login_required

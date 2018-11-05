@@ -12,6 +12,7 @@
 #   0.2.1   2018.10.25  Added API Exception classes.
 #   0.3.0   2018.10.29  Enhanced Flask.Response creation.
 #   0.4.0   2018.11.04  Changes for CSV streaming support.
+#   0.4.1   2018.11.05  Documentation update.
 #
 #
 #   Module for PATE Monitor Resource Objects/Classes and API
@@ -79,7 +80,7 @@ from application    import app
 # dictionary.
 #
 # Argument
-#   code_payload        tuple(int:code, dict:payload)
+#   code_payload        (code:int, payload:dict):tuple
 #
 def __make_response(code, payload):
     """Generate Flask.Response from provided response code and dictionary."""
@@ -113,11 +114,6 @@ def __make_response(code, payload):
         allow = [method for method in request.url_rule.methods if method not in ('HEAD', 'OPTIONS')]
         response.headers['Allow']        = ", ".join(allow)
         response.headers['Content-Type'] = 'application/json'
-        #response.headers['Content-Type'] = 'application/vnd.api+json'
-        # app.logger.debug(
-        #     "api.__make_response() normal exit. code: {}, payload={}"
-        #     .format(response.status, response.response)
-        # )
         return response
     except Exception as e:
         # VERY IMPORTANT! Do NOT re-raise the exception!
@@ -135,7 +131,7 @@ def __make_response(code, payload):
 # JSON Flask.Response create function for Flask route handlers
 #
 def response(response_tuple):
-    """Create Flask.Response from provided (code, dict) tuple."""
+    """Create Flask.Response from provided (code:int, data:dict):tuple."""
     return __make_response(response_tuple[0], response_tuple[1])
 
 
@@ -201,7 +197,7 @@ def exception_response(ex):
 
 
 #
-# UNDER DEVELOPMENT
+# UNDER TESTING (Seems to fail before streaming out 3 GB)
 # https://stackoverflow.com/questions/28011341/create-and-download-a-csv-file-from-a-flask-view
 #
 # Takes queried cursor and streams it out as CSV file
@@ -385,14 +381,5 @@ class NotImplemented(ApiException):
         super().__init__(message, details)
         self.code = 501
 
-
-
-if __name__ == '__main__':
-
-    try:
-        raise NotFound("Not here!", {'bummer' : 2, 'fix' : None})
-    except Exception as e:
-        print(e.to_dict())
-        print(e)
 
 # EOF
