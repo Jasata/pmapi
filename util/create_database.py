@@ -263,6 +263,25 @@ try:
     """
     cursor.execute(trg)
 
+
+    #
+    # Housekeeping
+    #
+    sql = """
+    CREATE TABLE housekeeping
+    (
+        timestamp       DATETIME NOT NULL PRIMARY KEY,
+        session_id      INTEGER NOT NULL,
+    """
+    cols = []
+    # dummy columns
+    for c in range(0,37):
+        cols.append("s_c{:02} INTEGER NOT NULL, ".format(c))    # S: Sun-pointing
+        cols.append("r_c{:02} INTEGER NOT NULL, ".format(c))    # R: Rotating
+    sql += "".join(cols)
+    sql += " FOREIGN KEY (session_id) REFERENCES testing_session (id) )"
+    cursor.execute(sql)
+
 except:
     print("Database creation failed!")
     print(sql)

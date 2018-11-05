@@ -129,7 +129,7 @@ def log_request(request):
 #
 @app.route('/api/pulseheight', methods=['GET'])
 def pulseheight():
-    """"""
+    """Raw PATE pulse height data."""
     log_request(request)
     try:
         from api.PulseHeight import PulseHeight
@@ -153,12 +153,12 @@ def classifieddata(function=None):
     or starting time of each sector is not available within data. It must
     be deciphered separately, if needed.
     
-    URI arguments:
+    Request parameters:
     begin - PATE timestamp
     end - PATE timestamp
     fields - A comma separated list of fields to return
     
-    Arguments 'begin' and 'end' are datetime data in timestamp format (TBS) and
+    Parameters 'begin' and 'end' are datetime data in timestamp format (TBS) and
     are compared against the primary key value 'rotation'.
     While the timestamp format remains without specification,
     Python timestamps (UNIX timestamps with fractions) should be used.
@@ -200,11 +200,47 @@ def classifieddata(function=None):
 # Housekeeping
 #
 @app.route('/api/housekeeping', methods=['GET'])
-def housekeeping():
-    """Not yet implemented"""
+@app.route('/api/housekeeping/<string:function>', methods=['GET'])
+def housekeeping(function=None):
+    """PATE Housekeeping data.
+
+    Data is currently not specified.
+    
+    Request parameters:
+    begin - PATE timestamp
+    end - PATE timestamp
+    fields - A comma separated list of fields to return
+    
+    Parameters 'begin' and 'end' are datetime data in timestamp format (TBS) and
+    are compared against the primary key value 'timestamp'.
+    While the timestamp format remains without specification,
+    Python timestamps (UNIX timestamps with fractions) should be used.
+    
+    GET /api/housekeeping
+
+    A JSON list of objects is returned. Among object properties, primary key
+    'timestamp' is always included, regardless what 'fields' argument specifies.
+    Data exceeding 7 days should not be requested. For more data, CSV services
+    should be used.
+
+    GET /api/housekeeping/<string:function>
+
+    Unlike in the above described API endpoint, these responses do not
+    explicitly include primary key field ('timestamp'), because that would
+    defeat the purpose of the aggregate functions. Allowed aggregate functions
+    are: avg, sum, min, max, count.
+    """
     log_request(request)
     try:
-        raise api.NotImplemented()
+        from api.Housekeeping import Housekeeping
+        if str(request.url_rule) == '/api/housekeeping':
+            return api.response(Housekeeping(request).get())
+        if str(request.url_rule) == '/api/housekeeping/<string:function>':
+            if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
+                raise api.InvalidArgument(
+                    "Function '{}' is not supported!".format(function)
+                )
+            return api.response(Housekeeping(request).get(function))
     except Exception as e:
         return api.exception_response(e)
 
@@ -229,6 +265,7 @@ def register(register_id):
 #
 @app.route('/api/note', methods=['GET', 'POST'])
 def note():
+    """Not yet implemented!"""
     log_request(request)
     try:
         from api.Note import Note
@@ -299,6 +336,17 @@ def psu():
 #
 @app.route('/csv/classifieddata', methods=['GET'])
 def csv_classifieddata():
+    """Export PATE hit counts into CSV file.
+
+    Request parameters:
+    begin - PATE timestamp
+    end - PATE timestamp
+    fields - A comma separated list of fields to return
+
+    All request parameters are optional. 'being' and 'end' timestamps limit the
+    result set and 'fields' limits the columns to the listed (and primary key,
+    which is always included).
+    """
     log_request(request)
     try:
         from api.ClassifiedData import ClassifiedData
@@ -313,14 +361,35 @@ def csv_classifieddata():
 
 @app.route('/csv/pulseheight', methods=['GET'])
 def csv_pulseheight():
+    """Export PATE raw pulse height data into CSV file.
+    NOT YET IMPLEMENTED!"""
     log_request(request)
     return app.response_class(status = 501, mimetype = "text/html")
 
 
 @app.route('/csv/housekeeping', methods=['GET'])
 def csv_housekeeping():
+    """Export PATE housekeeping data into CSV file.
+
+    Request parameters:
+    begin - PATE timestamp
+    end - PATE timestamp
+    fields - A comma separated list of fields to return
+
+    All request parameters are optional. 'being' and 'end' timestamps limit the
+    result set and 'fields' limits the columns to the listed (and primary key,
+    which is always included).
+    """
     log_request(request)
-    return app.response_class(status = 501, mimetype = "text/html")
+    try:
+        from api.Housekeeping import Housekeeping
+        return api.stream_result_as_csv(Housekeeping(request).query())
+    except Exception as e:
+        app.logger.exception(
+            "CSV generation failure! " + str(e)
+        )
+        raise
+    #return app.response_class(status = 501, mimetype = "text/html")
 
 
 ###############################################################################

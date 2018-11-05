@@ -6,11 +6,14 @@
 #
 #   0.1.0   2018.10.23  Initial version.
 #   0.2.0   2018.10.30  Now adapts to hitcount table columns automatically.
+#   0.2.1   2018.11.05  Accepts one command line argument (rotation count).
 #
 # https://www.sqlite.org/limits.html
 # SQLITE_MAX_SQL_LENGTH     Default is 1'000'000.
 # SQLITE_MAX_COLUMN         Default is     2'000.
 #
+#   175200      1/12 of a year (@15 second rotations)
+#   
 import os
 import sys
 import time
@@ -21,7 +24,7 @@ class Config:
     db_file     = "pmapi.sqlite3"
     table_name  = "hitcount"
     interval    = 15   # in seconds
-    rotations   = 175200 # 1/12 of a year (@15 second rotations)
+    rotations   = 5760 # one day of data
     max_hits    = 2**20
 
 def get_column_list(cursor, table, exclude = []):
@@ -83,6 +86,12 @@ def generate_session(pate_id):
 
 if __name__ == '__main__':
 
+    try:
+        Config.rotations = int(sys.argv[1])
+    except:
+        pass
+
+
     connection = sqlite3.connect(Config.db_file)
     cursor = connection.cursor()
     cursor.execute("PRAGMA foreign_keys = 1")
@@ -97,8 +106,10 @@ if __name__ == '__main__':
     # SQL
     sql = generate_sql(cursor)
     # Generate sci data rotations
+    print("Creating {} rotations of hitcount data...".format(Config.rotations))
     try:
         for i in range(0, Config.rotations):
+            print("\r{:>6.2f} % ...".format((100*i)/Config.rotations), end='')
             cursor.execute(
                 sql,
                 generate_packet(session_id, cursor)
@@ -106,6 +117,7 @@ if __name__ == '__main__':
     except:
         print(sql)
         raise
+    print("\r100.00 %      ")
 
 
     connection.commit()

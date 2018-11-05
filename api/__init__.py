@@ -241,7 +241,10 @@ def stream_result_as_csv(cursor):
         )
     )
 
-    # stream the response as the data is generated
+    # RFC 7111 (wich updates RFC 4180) states that the MIME type for
+    # CSV is "text/csv". (Google Chrome can shut the hell up).
+    #
+    # Stream the response using the local generate() -generator function.
     return Response(
         stream_with_context(generate(cursor)),
         mimetype='text/csv',
