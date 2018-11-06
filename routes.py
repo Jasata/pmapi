@@ -294,19 +294,45 @@ def note():
 def psu():
     """Agilent power supply remote control.
     
-    GET method will return a row from 'psu' table, containing values:
-    'power' ['ON', 'OFF'], indicating if the powerline is fed.
-    'voltage' (float), the configured output voltage.
-    'current_limit' (float), the configured current limit.
-    'measured_current' (float), reported current at output terminal.
-    'measured_voltage' (float), reported voltage at output terminal.
-    'state' ['OK', 'OVER CURRENT'], reported state of operations.
-    'modified' (float), Unix timestamp (with fractions of seconds) on when this row was generated.
+    GET /api/psu
+    No request parameters supported.
+    Response returns a row from 'psu' table, containing values:
+      'power' ['ON', 'OFF'], indicating if the powerline is fed.
+      'voltage' (float), the configured output voltage.
+      'current_limit' (float), the configured current limit.
+      'measured_current' (float), reported current at output terminal.
+      'measured_voltage' (float), reported voltage at output terminal.
+      'state' ['OK', 'OVER CURRENT'], reported state of operations.
+      'modified' (float), Unix timestamp (with fractions of seconds) on when this row was generated.
 
-    POST method allows setting three PSU parameters:
-    'function': 'SET_VOLTAGE', 'value': (float)
-    'function': 'SET_CURRENT_LIMIT', 'value': (float)
-    'function': 'SET_POWER', 'value': 'ON' | 'OFF'
+    GET /api/psu/voltage
+    No request parameters supported.
+    Response returns voltage information. 'voltage' : {'measured' : x.x, 'set' : x.x}
+
+    POST /api/psu/voltage
+    No request parameters supported.
+    JSON payload must contain; {"voltage" : x.x}
+
+    GET /api/psu/current
+    No request parameters supported.
+    Response returns current information;
+    "measured" : x.x
+    "limit" : x.x
+
+    GET /api/psu/current/limit
+    No request parameters supported.
+    Response returns current limit value;
+    "limit" : x.x
+
+    POST /api/psu/current/limit
+    No request parameters supported.
+    JSON payload must contain;
+    "limit" : x.x
+
+    GET /api/psu/power
+    No request parameters supported.
+    Request return PSU power state;
+    "power" : "ON|OFF"
     """
     log_request(request)
     try:
