@@ -1,0 +1,35 @@
+<script>
+  $(document).ready(function(){
+  
+  var json = [{"name": "name1","email":"email1@domain.com"},{"name": "name2","link":"email2@domain.com"}];
+  //while running this code the template will be appended in your div with json data
+  $("#tbody").jPut({
+      jsonData:json,
+      ajax_url:"http://130.232.103.193/pulseheight",
+      name:"tbody_template",
+  });
+  
+  });
+  </script>   
+  
+  <table jput="t_template">
+   <tbody jput="tbody_template">
+       <tr>
+           <td>{{timestamp}}</td>
+           <td>{{D2B}}</td>
+           <td>{{D1C}}</td>
+           <td>{{D3}}</td>
+           <td>{{D2A}}</td>
+           <td>{{D1B}}</td>
+           <td>{{AC2}}</td>
+           <td>{{D1A}}</td>
+           <td>{{AC1}}</td>
+           <td>{{hits}}</td>
+       </tr>
+   </tbody>
+  </table>
+  
+  <table>
+   <tbody id="tbody">
+   </tbody>
+  </table>

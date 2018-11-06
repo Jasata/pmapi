@@ -103,7 +103,7 @@ def __make_response(code, payload):
         # https://stackoverflow.com/questions/7907596/json-dumps-vs-flask-jsonify
         t = time.perf_counter()
         #payload = json.dumps(payload, indent=4, sort_keys=True, default=str)
-        payload = json.dumps(payload)
+        payload = json.dumps(payload, default=str)
         app.logger.debug("REMOVE SORT! json.dumps(): {:.1f}ms".format((time.perf_counter() - t) * 1000))
 
         response = app.response_class(
