@@ -200,8 +200,8 @@ try:
     sql = """
     CREATE TABLE note
     (
+        timestamp       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP PRIMARY KEY,
         session_id      INTEGER NOT NULL,
-        timestamp       DATETIME NOT NULL,
         note            TEXT,
         FOREIGN KEY (session_id) REFERENCES testing_session (id)
     )
