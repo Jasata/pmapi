@@ -202,7 +202,7 @@ try:
     (
         timestamp       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP PRIMARY KEY,
         session_id      INTEGER NOT NULL,
-        note            TEXT,
+        text            TEXT,
         FOREIGN KEY (session_id) REFERENCES testing_session (id)
     )
     """
