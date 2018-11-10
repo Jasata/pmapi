@@ -200,13 +200,24 @@ try:
     sql = """
     CREATE TABLE note
     (
-        timestamp       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP PRIMARY KEY,
-        session_id      INTEGER NOT NULL,
-        text            TEXT,
+        id              INTEGER     NOT NULL PRIMARY KEY AUTOINCREMENT,
+        session_id      INTEGER     NOT NULL,
+        text            TEXT            NULL,
+        created         INTEGER     NOT NULL DEFAULT (strftime('%s', 'now')),
         FOREIGN KEY (session_id) REFERENCES testing_session (id)
     )
     """
     cursor.execute(sql)
+    sql = """
+    CREATE TABLE note2
+    (
+        id              INTEGER     NOT NULL PRIMARY KEY AUTOINCREMENT,
+        session_id      INTEGER     NOT NULL,
+        text            TEXT            NULL,
+        created         INTEGER     NOT NULL DEFAULT (strftime('%s', 'now')),
+        FOREIGN KEY (session_id) REFERENCES testing_session (id)
+    )
+    """
 
 
 
@@ -222,8 +233,8 @@ try:
         command         TEXT            NOT NULL,
         value           TEXT            NOT NULL,
         created         TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        handled         DATETIME        NULL,
-        result          TEXT            NULL,
+        handled         DATETIME            NULL,
+        result          TEXT                NULL,
         FOREIGN KEY (session_id) REFERENCES testing_session (id)
     )
     """
@@ -257,7 +268,7 @@ try:
     FOR EACH ROW
     BEGIN
         UPDATE psu
-        SET    modified = current_timestamp
+        SET    modified = CURRENT_TIMESTAMP
         WHERE  id = old.id;
     END;
     """
