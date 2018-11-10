@@ -12,6 +12,7 @@
 #   0.1.2   2018.10.13  Changed to named SQL parameters (simpler to read).
 #   0.2.0   2018.10.29  Complies to new api.response().
 #   0.3.0   2018.11.04  Complies with new DataObject pattern.
+#   0.3.1   2018.11.10  Improved query parsing.
 #
 #
 import json
@@ -26,72 +27,73 @@ import sqlite3
 from flask              import g
 from application        import app
 from .                  import InvalidArgument
+from .                  import DataObject
 
-class PulseHeight:
+class PulseHeight(DataObject):
 
-
-
-    @staticmethod
-    def __get_pk(cursor, table):
-        """Returns a list of primary key columns for the table.
-        Potentially vulnerable to SQL injection - avoid using with user input!"""
-        # pragma_table_info() column:
-        # cid           Column ID number
-        # name          Column name
-        # type          INTEGER | DATETIME | ...
-        # notnull       1 = NOT NULL, 0 = NULL
-        # dflt_value    Default value
-        # pk            1 = PRIMARY KEY, 0 = not
-        cursor.execute(
-            "SELECT name FROM pragma_table_info('{}') WHERE pk = 1;"
-            .format(table)
-        )
-        return [row[0] for row in cursor]
-
-
-
-    @staticmethod
-    def __column_list(cursor, table, exclude = []):
-        """Method that compiles a list of data columns from a table"""
-        cursor.execute("SELECT * FROM {} LIMIT 1".format(table))
-        # Ignore query result and use cursor.description instead
-        return [key[0] for key in cursor.description if key[0] not in exclude]
-
-
+    accepted_request_arguments = (
+        'fields',
+        'begin',
+        'end',
+        'timestamp',
+        'session_id'
+    )
+    class DotDict(dict):
+        """dot.notation access to dictionary attributes"""
+        __getattr__ = dict.get
+        __setattr__ = dict.__setitem__
+        __delattr__ = dict.__delitem__
+        def __missing__(self, key):
+            """Return None if non-existing key is accessed"""
+            return None
 
     def __init__(self, request):
         """Parses request arguments."""
+        self.cursor = g.db.cursor()
+        super().__init__(self.cursor, 'pulseheight')
         try:
+            # build empty arg dictionary
+            self.args = self.DotDict()
+            for var in self.accepted_request_arguments:
+                setattr(self.args, var, None)
+
             if request.args:
                 # Raise exception for request unsupported arguments
-                for k, _ in request.args.items():
-                    if k not in ('fields', 'begin', 'end', 'timestamp'):
-                        raise InvalidArgument("Unsupported argument '{}'".format(k))
+                for key, _ in request.args.items():
+                    if key not in self.accepted_request_arguments:
+                        raise InvalidArgument(
+                            "Unsupported argument '{}'".format(key)
+                        )
+
                 try:
-                    fields      = request.args.get('fields',    None)
-                    timestamp   = request.args.get('timestamp', None)
-                    begin       = request.args.get('begin',     None)
-                    end         = request.args.get('end',       None)
+                    fields      = request.args.get('fields',        None)
+                    timestamp   = request.args.get('timestamp',     None)
+                    begin       = request.args.get('begin',         None)
+                    end         = request.args.get('end',           None)
+                    session_id  = request.args.get('session_id',    None)
                 except Exception as e:
+                    # Raise api.ApiException
                     raise InvalidArgument(
-                        "Argument parsing error",
+                        "Argument extraction failed!",
                         {'arguments' : request.args, 'exception' : str(e)}
                     )
 
-                # Convert to desired types
-                self.fields     = fields.split(',') if fields    else None
-                self.timestamp  = int(timestamp)    if timestamp else None
-                self.begin      = int(begin)        if begin     else None
-                self.end        = int(end)          if end       else None
+                # Convert to desired types (or create as None's)
+                self.args.fields     = fields.split(',') if fields     else None
+                self.args.timestamp  = int(timestamp)    if timestamp  else None
+                self.args.begin      = int(begin)        if begin      else None
+                self.args.end        = int(end)          if end        else None
+                self.args.session_id = int(session_id)   if session_id else None
 
         except Exception as e:
+            # Raise api.ApiException
             raise InvalidArgument(
-                "Parameter extraction failed!",
+                "Parameter parsing failed!",
                 str(e)
             )
 
-    @staticmethod
-    def query(request):
+
+    def query(self):
         """
         Return pulse height data in JSON format. Three allowed usages:
         1. (no arguments)   All records are returned
@@ -103,37 +105,46 @@ class PulseHeight:
         # Prepare SQL Statement
         #
         try:
-            cursor = g.db.cursor()
-            # Generate selected columns list
-            # NOTE: .session_id is largely for internal purposes and
-            #       not needed among the results.
-            cols = PulseHeight.__column_list(
-                cursor,
-                table   = 'pulseheight',
+            self.sql = "SELECT "
+            # api/__init__.py:DataObject().select_columns()
+            self.sql += self.select_columns(
+                include = self.args.fields or [],
                 exclude = ['session_id']
             )
-            # If fields is defined, filter out the rest
-            # (with the exception of primary key - that must always be included)
-            if self.fields:
-                primarykeys = PulseHeight.__get_pk(cursor, 'pulseheight')
-                cols = [col for col in cols if col in self.fields or col in primarykeys]
+            self.sql +=" FROM pulseheight "
 
-            sql = "SELECT " + ",".join(cols) + " FROM pulseheight "
-            if self.timestamp:
-                sql += "WHERE timestamp = :timestamp"
-            elif self.begin and not self.end:
-                sql += "WHERE timestamp >= :begin"
-            elif self.end and not self.begin:
-                sql += "WHERE timestamp <= :end"
-            elif self.begin and self.end:
-                sql += "WHERE timestamp >= :begin AND timestamp <= :end"
-            self.sql = sql
-            # Execute query
-            self.bvars = {
-                'timestamp' : timestamp,
-                'begin'     : begin,
-                'end'       : end
-            }
+            #
+            # WHERE conditions
+            #
+            conditions = []
+            if self.args.timestamp:
+                # Fetch request. Ignore other conditions.
+                conditions.append(
+                    self.where_condition('timestamp') + " = :timestamp"
+                )
+            else:
+                if self.args.begin:
+                    conditions.append(
+                        self.where_condition('timestamp') + " >= :begin"
+                    )
+                if self.args.end:
+                    conditions.append(
+                        self.where_condition('timestamp') + " >= :end"
+                    )
+                if self.args.session_id:
+                    conditions.append("session_id = :session_id")
+            if conditions:
+                self.sql += " WHERE " + " AND ".join(conditions)
+
+            #
+            # Bind variables
+            #
+            # self.bvars = {
+            #     'timestamp'     : self.timestamp,
+            #     'begin'         : self.begin,
+            #     'end'           : self.end,
+            #     'session_id'    : self.session_id or None
+            # }
         except:
             app.logger.exception("Query preparations failed!")
             raise
@@ -142,17 +153,17 @@ class PulseHeight:
         # Execute query
         #
         try:
-            cursor.execute(self.sql, self.bvars)
+            self.cursor.execute(self.sql, self.args)
         except:
             app.logger.exception(
                 "Query failure! SQL='{}', bvars='{}'"
-                .format(self.sql, self.bvars)
+                .format(self.sql, self.args)
             )
             raise
 
 
         # Mind not to close the cursor
-        return cursor
+        return self.cursor
 
 
 
@@ -161,7 +172,7 @@ class PulseHeight:
         # https://medium.com/@PyGuyCharles/python-sql-to-json-and-beyond-3e3a36d32853
         # turn result object into a list of row-dictionaries
         # (result-)table column names are used as keys in key-value pairs.
-        data = [dict(zip([key[0] for key in cursor.description], row)) for row in result]
+        data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
 
         if app.config.get("DEBUG", False):
             return (
@@ -170,19 +181,13 @@ class PulseHeight:
                     "data"          : data,
                     "query details" : {
                         "sql"               : self.sql,
-                        "bind variables"    : self.bvars,
-                        "fields"            : self.fields or "ALL"
+                        "bind variables"    : self.args,
+                        "fields"            : self.args.fields or "ALL"
                     }
                 }
             )
         else:
             return (200, {"data": data})
-
-
-
-    def csv(self):
-        # Simply return the cursor. Api will stream it out.
-        return self.query()
 
 
 

@@ -73,6 +73,148 @@ from flask          import g
 from application    import app
 
 
+###############################################################################
+#
+# DataObject class (SQLite3 utilities)
+#
+#   Every API class should derive itself from this class.
+#
+#   DataObject.__init__(cursor, table: str, exclude: list)
+#       Initializes the DataObject for 'table' by reading in column metadata.
+#       NOTE: You should not exclude primary keys. Intended for obsolete
+#             columns that are not yet purged from the database.
+#
+#   DataObject().columns: list
+#       All columns the 'table' that was given for the initialiaztion,
+#       except the columns that were specified in 'exclude' list during
+#       initialization.
+#
+#   DataObject().keys: list
+#       List of primary key columns in the <table>.
+#
+#   DataObject().select_columns(exclude: list) -> str
+#       Returns a string for SELECT clause where special formatting is
+#       applied to datatypes that need it (namely, TIMESTAMP and DATETIME).
+#       Optional exclude list may be supplied for columns that are not
+#       needed among selected items.
+#
+#   DataObject().where_condition(column: str) -> str
+#       Parse needed conversions and casts according to the datatype.
+#
+#   NOTE:
+#   SQLite natively supports only the types TEXT, INTEGER, REAL, BLOB and NULL.
+#
+class DataObject(list):
+    class DotDict(dict):
+        """dot.notation access to dictionary attributes"""
+        __getattr__ = dict.get
+        __setattr__ = dict.__setitem__
+        __delattr__ = dict.__delitem__
+        def __missing__(self, key):
+            """Return None if non-existing key is accessed"""
+            return None
+
+    def __init__(self, cursor, table, exclude = []):
+        # pragma_table_info() columns:
+        # cid           Column ID number
+        # name          Column name
+        # type          INTEGER | DATETIME | ...
+        # notnull       1 = NOT NULL, 0 = NULL
+        # dflt_value    Default value
+        # pk            1 = PRIMARY KEY, 0 = not
+        cursor.execute("SELECT * FROM pragma_table_info('{}')".format(table))
+        for row in cursor:
+            if row[1] not in exclude:
+                self.append(
+                    self.DotDict(
+                        name      = row[1],
+                        datatype    = row[2],
+                        nullable    = True if row[3] == 0 else False,
+                        default     = row[4],
+                        primarykey  = True if row[5] == 1 else False
+                    )
+                )
+
+
+    @property
+    def columns(self):
+        """Returns a list of column names."""
+        return [col.name for col in self]
+
+
+    @property
+    def primarykeys(self):
+        """Returns a list of primary key columns."""
+        return [col.name for col in self if col.primarykey]
+
+
+    def select_columns(
+        self,
+        include = [],
+        exclude = [],
+        include_primarykeys = True
+    ):
+        """Provide datatype specific formatting for SQL queries. Optional 'include' list can be provided, limiting the parsing to specified. However, if 'include_primary_keys' is True, the parsed string will always contain also the primary key columns - even if they are not defined in the 'include' and excluded in the 'exclude' list.
+        
+        If a column is defined in both 'include' and 'exclude', exclude list will take precedence and column is not included. Only exception to this rule are primary key columns (when 'include_primarykeys' is True)."""
+        # Purge primary keys from exclude list, if 'include_primarykeys'
+        if exclude and include_primarykeys:
+            exclude = [col for col in exclude if col not in self.primarykeys]
+        # Compile list of column objects/dicts
+        if not include:
+            # empty 'include' equals ALL fields (except 'excluded')
+            flist = [col for col in self if col.name not in exclude]
+        else:
+            flist = []
+            for col in self:
+                if col.primarykey and include_primarykeys:
+                    flist.append(col)
+                elif col.name in include and col.name not in exclude:
+                    flist.append(col)
+
+        slist = []
+        # NOTE: Fractional timestamp (Warning - fractional inaccuracy!)
+        # SELECT (julianday(timestamp) - 2440587.5) * 86400.0
+        # 1541695244 (exact) becomes: 1541695244.00001
+        for col in flist:
+            if col.datatype == 'TIMESTAMP':
+                slist.append(
+                    "CAST(strftime('%s', {0}) as integer) AS {0}"
+                    .format(col.name)
+                )
+            elif col.datatype == 'DATETIME':
+                slist.append(
+                    "datetime({0}) AS {0}"
+                    .format(col.name)
+                )
+            else:
+                slist.append(col.name)
+        return ", ".join(slist)
+
+
+    def where_condition(self, column):
+        """Return formatting for condition column based on datatype."""
+        col = None
+        for c in self:
+            if c.name == column:
+                col = c
+                break
+        if not col:
+            raise ValueError("Non-existent column specified")
+        # return suitable conversion
+        if col.datatype == 'TIMESTAMP':
+            return "CAST(strftime('%s', {}) as integer)".format(col.name)
+        elif col.datatype == 'DATETIME':
+            return "datetime({})".format(col.name)
+        else:
+            return "{}".format(col.name)
+
+
+    def __str__(self):
+        return "\n".join([str(c) for c in self])
+
+
+
 
 #
 # __make_response(code, payload)
