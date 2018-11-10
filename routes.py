@@ -68,8 +68,8 @@ from application    import app
 import api
 
 #
-# Debug log HTTP request and the rule that serves it
-# (application.log)
+# Debug log-function
+#       Store HTTP request path and the rule that triggered.
 #
 def log_request(request):
     app.logger.debug(
@@ -104,13 +104,15 @@ def log_request(request):
 #       DELETE  delete
 #
 #   IMPORTANT NOTE ABOUT GET METHODS
-#       GET requests shall be divided into TWO (2) separate types; searches and fetches.
-#       Search provides zero to N search criteria and yields in zero to N results.
-#       Fetch provides a key (ID or elements that make up the primary key) and
-#       can only return the specified (one) item or "404 Not Found".
+#       GET requests shall be divided into TWO (2) separate types;
+#       searches and fetches. Search provides zero to N search criteria
+#       and yields in zero to N results. Fetch provides a key (ID or
+#       elements that make up the primary key) and can only return the
+#       specified (one) item or "404 Not Found".
 #
-#   NOTE:   "401 Unauthorized" needs to be added when PATE Monitor becomes an EGSE solution.
-#           This needs to work WITH the @requires_roles('admin', 'user') or @login_required
+#   NOTE:   "401 Unauthorized" needs to be added when PATE Monitor
+#           becomes an EGSE solution. This needs to work WITH the
+#           @requires_roles('admin', 'user') or @login_required
 #           or whatever is the chosen approach...
 #           https://flask-user.readthedocs.io/en/v0.6/authorization.html
 #
@@ -139,113 +141,124 @@ def pulseheight():
         return api.exception_response(e)
 
 
-
+###############################################################################
 #
 # Science Data (hit counters)
 #
 @app.route('/api/classifieddata', methods=['GET'])
-@app.route('/api/classifieddata/<string:function>', methods=['GET'])
-def classifieddata(function=None):
-    """PATE Classified particle hits.
+def classifieddata_get():
+    """Classified PATE hit counters
 
-    Data is logically grouped into full rotations, each identified by the
-    timestamp when the rotation started. Information on rotational period
-    or starting time of each sector is not available within data. It must
-    be deciphered separately, if needed.
-    
+    Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Field/column descriptions are unavailable until they have been formally specified by instrument development.
+
     Request parameters:
-    begin - PATE timestamp
-    end - PATE timestamp
+    begin - PATE timestamp (Unix timestamp)
+    end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
-    
-    Parameters 'begin' and 'end' are datetime data in timestamp format (TBS) and
-    are compared against the primary key value 'rotation'.
-    While the timestamp format remains without specification,
-    Python timestamps (UNIX timestamps with fractions) should be used.
-    
+
+    Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
+
     GET /api/classifieddata
 
-    A JSON list of objects is returned. Among object properties, primary key
-    'rotation' is always included, regardless what 'fields' argument specifies.
-    Data exceeding 7 days should not be requested. For more data, CSV services
-    should be used.
-
-    GET /api/classifieddata/<string:function>
-
-    Unlike in the above described API endpoint, these responses do not
-    explicitly include primary key field ('rotation'), because that would
-    defeat the purpose of the aggregate functions. Allowed aggregate functions
-    are: avg, sum, min, max, count.
-    """
+    A JSON list of objects is returned. Among object properties, primary key 'rotation' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
     log_request(request)
     try:
         from api.ClassifiedData import ClassifiedData
-        if str(request.url_rule) == '/api/classifieddata':
-            return api.response(ClassifiedData(request).get())
-        if str(request.url_rule) == '/api/classifieddata/<string:function>':
-            if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
-                raise api.InvalidArgument(
-                    "Function '{}' is not supported!".format(function)
-                )
-            return api.response(ClassifiedData(request).get(function))
+        return api.response(ClassifiedData(request).get())
     except Exception as e:
-        # Handles both ApiException and Exception derivates
+        return api.exception_response(e)
+
+
+
+@app.route('/api/classifieddata/<string:function>', methods=['GET'])
+def classifieddata_aggregate(function):
+    """Aggregated classified PATE particle hits
+
+    Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Information on rotational period or starting time of each sector is not available within data. It must be deciphered separately, if needed.
+
+    Request parameters:
+    begin - PATE timestamp (Unix timestamp)
+    end - PATE timestamp (Unix timestamp)
+    fields - A comma separated list of fields to return
+
+    Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
+
+    GET /api/classifieddata/<string:function>
+
+    A JSON list containing a single object is returned. The identifier field ('rotation') is never included, because that would defeat the purpose of the aggregate functions. Allowed aggregate functions are: avg, sum, min, max and count."""
+    log_request(request)
+    try:
+        from api.ClassifiedData import ClassifiedData
+        if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
+            raise api.InvalidArgument(
+                "Function '{}' is not supported!".format(function)
+            )
+        return api.response(ClassifiedData(request).get(function))
+    except Exception as e:
         return api.exception_response(e)
 
 
 
 
-
+###############################################################################
 #
 # Housekeeping
 #
 @app.route('/api/housekeeping', methods=['GET'])
-@app.route('/api/housekeeping/<string:function>', methods=['GET'])
-def housekeeping(function=None):
-    """PATE Housekeeping data.
+def housekeeping_get():
+    """PATE Housekeeping data
 
-    Data is currently not specified.
-    
+    Remains unspecified.
+
     Request parameters:
-    begin - PATE timestamp
-    end - PATE timestamp
+    begin - PATE timestamp (Unix timestamp)
+    end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
-    
-    Parameters 'begin' and 'end' are datetime data in timestamp format (TBS) and
-    are compared against the primary key value 'timestamp'.
-    While the timestamp format remains without specification,
-    Python timestamps (UNIX timestamps with fractions) should be used.
-    
+
+    Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
+
     GET /api/housekeeping
 
-    A JSON list of objects is returned. Among object properties, primary key
-    'timestamp' is always included, regardless what 'fields' argument specifies.
-    Data exceeding 7 days should not be requested. For more data, CSV services
-    should be used.
-
-    GET /api/housekeeping/<string:function>
-
-    Unlike in the above described API endpoint, these responses do not
-    explicitly include primary key field ('timestamp'), because that would
-    defeat the purpose of the aggregate functions. Allowed aggregate functions
-    are: avg, sum, min, max, count.
-    """
+    A JSON list of objects is returned. Among object properties, primary key 'rotation' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
     log_request(request)
     try:
         from api.Housekeeping import Housekeeping
-        if str(request.url_rule) == '/api/housekeeping':
-            return api.response(Housekeeping(request).get())
-        if str(request.url_rule) == '/api/housekeeping/<string:function>':
-            if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
-                raise api.InvalidArgument(
-                    "Function '{}' is not supported!".format(function)
-                )
-            return api.response(Housekeeping(request).get(function))
+        return api.response(Housekeeping(request).get())
     except Exception as e:
         return api.exception_response(e)
 
 
 
+@app.route('/api/housekeeping/<string:function>', methods=['GET'])
+def housekeeping(function):
+    """Aggregated PATE Housekeeping data
+
+    Remains unspecified.
+
+    Request parameters:
+    begin - PATE timestamp (Unix timestamp)
+    end - PATE timestamp (Unix timestamp)
+    fields - A comma separated list of fields to return
+
+    Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
+
+    GET /api/housekeeping/<string:function>
+
+    Unlike in the above described API endpoint, these responses do not explicitly include primary key field ('timestamp'), because that would defeat the purpose of the aggregate functions. Allowed aggregate functions are: avg, sum, min, max and count."""
+    log_request(request)
+    try:
+        from api.Housekeeping import Housekeeping
+        if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
+            raise api.InvalidArgument(
+                "Function '{}' is not supported!".format(function)
+            )
+        return api.response(Housekeeping(request).get(function))
+    except Exception as e:
+        return api.exception_response(e)
+
+
+
+###############################################################################
 #
 # Register
 #
@@ -260,19 +273,26 @@ def register(register_id):
 
 
 
+###############################################################################
 #
 # Operator notes
 #
 @app.route('/api/note', methods=['GET', 'POST'])
 def note():
-    """Not yet implemented!"""
+    """Search for notes (GET method) with 'being' and 'end' criterial or create new note (POST method).
+
+    POST /api/note
+
+    Required payload: { "text" : "string" }
+    Successful response is equal to fetch (GET /api/note/<int:timestamp>)."""
     log_request(request)
     try:
         from api.Note import Note
+        note = Note(request)
         if request.method == 'POST':
-            return api.response(Note.post(request))
+            return api.response(note.create())
         elif request.method == 'GET':
-            return api.response(Note.get(request))
+            return api.response(note.search())
         else:
             # Should be impossible
             raise api.MethodNotAllowed(
@@ -280,9 +300,24 @@ def note():
                 .format(request.method, request.url_rule)
             )
     except Exception as e:
-        # Handles both ApiException and Exception derivates
         return api.exception_response(e)
 
+
+
+@app.route('/api/note/<int:timestamp>', methods=["GET"])
+def note_identified(timestamp):
+    """Fetch operator note (identified by timestamp)."""
+    log_request(request)
+    try:
+        from api.Note import Note
+        note = Note(request)
+        api.response(note.fetch(timestamp))
+    except Exception as e:
+        return api.exception_response(e)
+
+
+
+###############################################################################
 #
 # Command interface
 #
@@ -385,12 +420,14 @@ def csv_classifieddata():
         raise
 
 
+
 @app.route('/csv/pulseheight', methods=['GET'])
 def csv_pulseheight():
     """Export PATE raw pulse height data into CSV file.
     NOT YET IMPLEMENTED!"""
     log_request(request)
     return app.response_class(status = 501, mimetype = "text/html")
+
 
 
 @app.route('/csv/housekeeping', methods=['GET'])
@@ -416,6 +453,28 @@ def csv_housekeeping():
         )
         raise
     #return app.response_class(status = 501, mimetype = "text/html")
+
+
+@app.route('/csv/note', methods=["GET"])
+def csv_note():
+    """Export operator notes into a CSV file.
+
+    Accepted request parameters:
+    begin - PATE timestamp
+    end - PATE timestamp
+
+    Request parameters are optional. 'being' and 'end' timestamps limit the
+    result set to include only entries within specified datetimes."""
+    log_request(request)
+    try:
+        from api.Note import Note
+        return api.stream_result_as_csv(Note(request).query())
+    except Exception as e:
+        app.logger.exception(
+            "CSV generation failure! " + str(e)
+        )
+        raise
+
 
 
 ###############################################################################
@@ -489,6 +548,7 @@ def api_doc():
         """Some HTML formatting for docstrings."""
         result = None
         if docstring:
+            docstring = docstring.replace('<', '&lt;').replace('>', '&gt;')
             result = "<br/>".join(docstring.split('\n')) + "<br/>"
         return result
     try:
@@ -546,6 +606,9 @@ def api_doc():
     except Exception as e:
         return api.exception_response(e)
 
+
+
+###############################################################################
 #
 # Catch-all for non-existent API requests
 #
@@ -563,6 +626,7 @@ def api_not_implemented(path = ''):
         )
     except Exception as e:
         return api.exception_response(e)
+
 
 
 ###############################################################################
@@ -587,17 +651,6 @@ def api_not_implemented(path = ''):
 #           It will raise an error if the path leads to outside of a
 #           particular directory.
 #
-# @app.route('/js/<path:path>')
-# def send_js(path):
-#     return send_from_directory('js', path)
-
-# @app.route('/css/<path:path>')
-# def send_css(path):
-#     return send_from_directory('css', path)
-
-# @app.route('/img/<path:path>')
-# def send_img(path):
-#     return send_from_directory('img', path)
 
 #
 # NOTE: Development time request from Rameez;
@@ -605,7 +658,6 @@ def api_not_implemented(path = ''):
 #       Configured into /etc/nginx/sites-available/default
 #       You should not have index.html in '/ui', or listing will not show.
 #
-
 
 #
 # Catch-all for other paths (UI HTML files)
