@@ -7,6 +7,7 @@
 #   0.1.0   2018.10.23  Initial version.
 #   0.2.0   2018.10.30  Corrected hitcount table columns.
 #   0.2.1   2018.11.11  hitcount.rotation -> hitcount.timestamp
+#   0.2.2   2018.11.11  housekeeping.timestamp datetime -> integer.
 #
 # SQLite3 has only the following datatypes:
 #       INTEGER
@@ -362,7 +363,7 @@ try:
     sql = """
     CREATE TABLE housekeeping
     (
-        timestamp       DATETIME NOT NULL PRIMARY KEY,
+        timestamp       INTEGER NOT NULL DEFAULT CURRENT_TIME PRIMARY KEY,
         session_id      INTEGER NOT NULL,
     """
     cols = []

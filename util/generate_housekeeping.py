@@ -5,6 +5,7 @@
 # generate_housekeeping.py - Jani Tammi <jasata@utu.fi>
 #
 #   0.1.0   2018.11.05  Initial version.
+#   0.1.1   2018.11.11  housekeeping.timestamp -> INTEGER.
 #
 # https://www.sqlite.org/limits.html
 # SQLITE_MAX_SQL_LENGTH     Default is 1'000'000.
@@ -64,7 +65,7 @@ def generate_packet(session_id, cursor):
     nvars = generate_packet.nvars
     lst = [random.randint(0, Config.max_hits) for x in range(0, nvars)]
     lst.insert(0, session_id)
-    lst.insert(0, generate_packet.timestamp)
+    lst.insert(0, int(generate_packet.timestamp))
     return tuple(lst)
 
 

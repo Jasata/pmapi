@@ -20,82 +20,87 @@ import sqlite3
 from flask              import g
 from application        import app
 from .                  import InvalidArgument
+from .                  import DataObject
 
-class Housekeeping:
+class Housekeeping(DataObject):
 
-    # Query and bind variables
+    # Class variables
     sql         = ""
-    bvars       = {}
-    # Arguments
-    fields      = None
-    begin       = None
-    end         = None
-    timestamp   = None
+    args        = {}
+    cursor      = None
 
-    @staticmethod
-    def __get_pk(cursor, table):
-        """Returns a list of primary key columns for the table.
-        Potentially vulnerable to SQL injection - avoid using with user input!"""
-        # pragma_table_info() column:
-        # cid           Column ID number
-        # name          Column name
-        # type          INTEGER | DATETIME | ...
-        # notnull       1 = NOT NULL, 0 = NULL
-        # dflt_value    Default value
-        # pk            1 = PRIMARY KEY, 0 = not
-        cursor.execute(
-            "SELECT name FROM pragma_table_info('{}') WHERE pk = 1;"
-            .format(table)
-        )
-        return [row[0] for row in cursor]
+    accepted_request_arguments = (
+        'fields',
+        'begin',
+        'end',
+        'timestamp',
+        'session_id'
+    )
 
-    @staticmethod
-    def __column_list(cursor, table, exclude = []):
-        """Method that compiles a list of data columns from a table"""
-        cursor.execute("SELECT * FROM {} LIMIT 1".format(table))
-        # Ignore query result and use cursor.description instead
-        return [key[0] for key in cursor.description if key[0] not in exclude]
+    class DotDict(dict):
+        """dot.notation access to dictionary attributes"""
+        __getattr__ = dict.get
+        __setattr__ = dict.__setitem__
+        __delattr__ = dict.__delitem__
+        def __missing__(self, key):
+            """Return None if non-existing key is accessed"""
+            return None
 
     def __init__(self, request):
         """Parses request arguments."""
+        self.cursor = g.db.cursor()
+        super().__init__(self.cursor, 'housekeeping')
         try:
+            # build empty arg dictionary
+            self.args = self.DotDict()
+            for var in self.accepted_request_arguments:
+                setattr(self.args, var, None)
+
             if request.args:
                 # Raise exception for request unsupported arguments
-                for k, _ in request.args.items():
-                    if k not in ('fields', 'begin', 'end', 'timestamp'):
-                        raise InvalidArgument("Unsupported argument '{}'".format(k))
+                for key, _ in request.args.items():
+                    if key not in self.accepted_request_arguments:
+                        raise InvalidArgument(
+                            "Unsupported argument '{}'".format(key)
+                        )
+
                 try:
-                    fields      = request.args.get('fields',    None)
-                    timestamp   = request.args.get('timestamp', None)
-                    begin       = request.args.get('begin',     None)
-                    end         = request.args.get('end',       None)
+                    fields      = request.args.get('fields',        None)
+                    timestamp   = request.args.get('timestamp',     None)
+                    begin       = request.args.get('begin',         None)
+                    end         = request.args.get('end',           None)
+                    session_id  = request.args.get('session_id',    None)
                 except Exception as e:
+                    # Raise api.ApiException
                     raise InvalidArgument(
-                        "Argument parsing error",
+                        "Argument extraction failed!",
                         {'arguments' : request.args, 'exception' : str(e)}
                     )
 
-                # Convert to desired types
-                self.fields     = fields.split(',') if fields    else None
-                self.timestamp  = int(timestamp)    if timestamp else None
-                self.begin      = int(begin)        if begin     else None
-                self.end        = int(end)          if end       else None
+                # Convert to desired types (or create as None's)
+                self.args.fields     = fields.split(',') if fields     else None
+                self.args.timestamp  = int(timestamp)    if timestamp  else None
+                self.args.begin      = int(begin)        if begin      else None
+                self.args.end        = int(end)          if end        else None
+                self.args.session_id = int(session_id)   if session_id else None
 
         except Exception as e:
+            # Raise api.ApiException
             raise InvalidArgument(
-                "Parameter extraction failed!",
+                "Parameter parsing failed!",
                 str(e)
             )
 
         #
-        # Complain if request.args['fields'] has column names that do not exist
+        # Complain if args.fields contains non-existent columns
         #
-        self.columns = Housekeeping.__column_list(g.db.cursor(), "housekeeping")
-        if self.fields:
-            if any(True for x in self.fields if x not in self.columns):
-                raise InvalidArgument(
-                    "'fields' parameter contains non-existing field names!"
-                )
+        if self.missing_columns(self.args.fields):
+            raise InvalidArgument(
+                "Non-existent fields defined!",
+                "Field(s) " + ","
+                .join(self.missing_columns(self.args.fields)) + " do not exist!"
+            )
+
 
     def query(self, aggregate=None):
         """Processes HTTP Request arguments and executes the query.
@@ -104,92 +109,114 @@ class Housekeeping:
         # Prepare SQL Statement
         #
         try:
-            cursor = g.db.cursor()
-            # Generate selected columns list
-            # NOTE: .session_id is largely for internal purposes and
-            #       not needed among the results.
-            cols = Housekeeping.__column_list(
-                cursor,
-                table   = 'housekeeping',
-                exclude = ['session_id']
+            # api/__init__.py:DataObject().get_column_objects()
+            cols = self.get_column_objects(
+                include = self.args.fields or [],
+                exclude=['session_id']
             )
-            # If fields is defined, filter out the rest
-            # (with the exception of primary key - that must always be included)
-            primarykeys = Housekeeping.__get_pk(cursor, 'housekeeping')
-            if self.fields:
-                cols = [col for col in cols if col in self.fields or col in primarykeys]
-            # Parse column list
-            if aggregate:
-                # For aggregated queries, remove PK columns
-                cols = ",".join([
-                    "{0}({1}) as {1}".format(aggregate, col)
-                    for col in cols if col not in primarykeys
-                ])
-                #for pk in primarykeys:
-                #    cols.remove(pk)
-            else:
-                cols = ",".join(cols)
 
-            # Parse SQL statement
-            sql = "SELECT " + cols + " FROM housekeeping "
-            if self.timestamp:
-                sql += "WHERE timestamp = :timestamp"
-            elif self.begin and not self.end:
-                sql += "WHERE timestamp >= :begin"
-            elif self.end and not self.begin:
-                sql += "WHERE rotatimestamption <= :end"
-            elif self.begin and self.end:
-                sql += "WHERE timestamp >= :begin AND timestamp <= :end"
-            self.sql = sql
-            # Bind variables for the query
-            self.bvars = {
-                'timestamp' : self.timestamp,
-                'begin'     : self.begin,
-                'end'       : self.end
-            }
+            #
+            # In aggregate request, drop primary key(s).
+            # Use aggregate function only for INTEGER or REAL columns.
+            #
+            columnlist = []
+            if aggregate:
+                for col in cols:
+                    if not col.primarykey:
+                        if col.datatype in ('INTEGER', 'REAL'):
+                            columnlist.append(
+                                "{0}({1}) as {1}".format(aggregate, col.name)
+                            )
+                        else:
+                            columnlist.append(
+                                self.select_typecast(col)
+                            )
+            else:
+                # No aggregate defined
+                columnlist = [self.select_typecast(col) for col in cols]
+
+            self.sql = "SELECT "
+            self.sql += ", ".join(columnlist)
+            self.sql +=" FROM housekeeping"
+
+            #
+            # WHERE conditions
+            #
+            conditions = []
+            if self.args.timestamp:
+                # Fetch request. Ignore other conditions.
+                conditions.append(
+                    self.where_condition('timestamp') + " = :timestamp"
+                )
+            else:
+                if self.args.begin:
+                    conditions.append(
+                        self.where_condition('timestamp') + " >= :begin"
+                    )
+                if self.args.end:
+                    conditions.append(
+                        self.where_condition('timestamp') + " <= :end"
+                    )
+                if self.args.session_id:
+                    conditions.append("session_id = :session_id")
+            if conditions:
+                self.sql += " WHERE " + " AND ".join(conditions)
+
         except:
-            app.logger.exception("SQL parsing failed!")
+            app.logger.exception("Query preparations failed!")
             raise
 
         #
         # Execute query
         #
         try:
-            cursor.execute(self.sql, self.bvars)
+            self.cursor.execute(self.sql, self.args)
         except:
             app.logger.exception(
-                "Query failure! SQL='{}', bvars='{}'"
-                .format(self.sql, self.bvars)
+                "Query failure! SQL='{}', args='{}'"
+                .format(self.sql, self.args)
             )
             raise
 
         # Must not close the cursor!
-        return cursor
+        return self.cursor
 
 
 
     def get(self, aggregate=None):
-        """
-        Return hit counter data in JSON format. Three allowed usages:
-        1. (no arguments)   All records are returned
-        2. timestamp        The record matching timestamp
-        3. begin and/or end Return records that fall between begin and end
-        'timestamp', 'begin' and 'end' are UNIX datetime stamps.
-        """
+        """Handle Fetch and Search requests."""
         cursor = self.query(aggregate)
-        # Convert result into a dictionary
-        data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
 
+        #
+        # Convert to dict or list of dicts
+        #
+        if self.args.timestamp or aggregate:
+            # Fetch request - return object
+            result = cursor.fetchall()
+            if len(result) < 1:
+                raise NotFound(
+                    "Pulseheight record not found!",
+                    "Provided timestamp '{}' does not match any in the database"
+                    .format(self.args.timestamp)
+                )
+            data = dict(zip([c[0] for c in cursor.description], result[0]))
+        else:
+            # Search request - return a list of objects
+            data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
 
+        #
+        # Return as tuple
+        #
+        fields = self.args.pop('fields', None)
         if app.config.get("DEBUG", False):
             return (
                 200,
                 {
                     "data"          : data,
-                    "query details" : {
-                        "sql"               : self.sql,
-                        "bind variables"    : self.bvars,
-                        "fields"            : self.fields or "ALL"
+                    "query" : {
+                        "sql"       : self.sql,
+                        "variables" : self.args,
+                        "fields"    : fields or "ALL"
                     }
                 }
             )
@@ -197,10 +224,6 @@ class Housekeeping:
             return (200, {"data": data})
 
 
-
-    def csv(self):
-        # Simply return the cursor. Api will stream it out.
-        return self.query()
 
 
 # EOF

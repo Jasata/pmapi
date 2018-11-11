@@ -116,6 +116,7 @@ if __name__ == '__main__':
         )
     """
 
+    print("Importing sample pulseheight data...", end="", flush=True)
     with open(Config.csv_file, 'r') as csvfile:
         reader = csv.reader(csvfile, dialect='excel-finnish')
 
@@ -146,5 +147,6 @@ if __name__ == '__main__':
                 )
             )
     connection.commit()
+    print("done!")
 
 # EOF
