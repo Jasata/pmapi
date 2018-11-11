@@ -18,7 +18,7 @@ import random
 import sqlite3
 
 class Config:
-    db_file     = "pmapi.sqlite3"
+    db_file     = "../pmapi.sqlite3"
     table_name  = "housekeeping"
     interval    = 60   # in seconds
     samples     = 1000 # one day of data
@@ -105,6 +105,13 @@ if __name__ == '__main__':
         Config.samples = int(sys.argv[1])
     except:
         pass
+
+    from pathlib import Path
+
+    dbfile = Path(Config.db_file)
+    if not dbfile.is_file():
+        print(Config.db_file, "not found!")
+        os._exit(-1)
 
 
     connection = sqlite3.connect(Config.db_file)

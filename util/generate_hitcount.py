@@ -39,9 +39,9 @@ def get_column_list(cursor, table, exclude = []):
 
 
 def generate_sql(cursor):
-    sql1 = "INSERT INTO {} (rotation, session_id, ".format(Config.table_name)
+    sql1 = "INSERT INTO {} (timestamp, session_id, ".format(Config.table_name)
     sql2 = ") VALUES (?, ?, "
-    cols = get_column_list(cursor, Config.table_name, ['rotation', 'session_id'])
+    cols = get_column_list(cursor, Config.table_name, ['timestamp', 'session_id'])
     sql_binds = ""
     for col in cols:
         sql_binds += "?, "
@@ -53,7 +53,7 @@ def generate_packet(session_id, cursor):
     try:
         (generate_packet.timestamp)
     except:
-        generate_packet.timestamp = time.time()
+        generate_packet.timestamp = int(time.time())
     else:
         generate_packet.timestamp += Config.interval
     # Number of columns to provide data for
@@ -63,7 +63,7 @@ def generate_packet(session_id, cursor):
         generate_packet.nvars = len(get_column_list(
             cursor,
             Config.table_name,
-            ['rotation', 'session_id']
+            ['timestamp', 'session_id']
         ))
     nvars = generate_packet.nvars
     lst = [random.randint(0, Config.max_hits) for x in range(0, nvars)]

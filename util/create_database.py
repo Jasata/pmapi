@@ -6,33 +6,100 @@
 #
 #   0.1.0   2018.10.23  Initial version.
 #   0.2.0   2018.10.30  Corrected hitcount table columns.
+#   0.2.1   2018.11.11  hitcount.rotation -> hitcount.timestamp
+#
+# SQLite3 has only the following datatypes:
+#       INTEGER
+#       REAL        8-byte IEEE floating point, but in reality, changes
+#       TEXT
+#       BLOB
+#
+#       A test program probing the precision of SQLite3 REAL datatype revealed
+#       that in 32-bit Rasbian OS, REAL is accurate up to 76 decimal places.
+#       In 64-bit Debian system, REAL is accurate to 332 decimal places.
+#
+#       BE VERY CAREFUL WHEN READING DECIMAL VALUES WITH PYTHON!
+#
+#       Python's float is garbage (the same crap that was used on 1970s).
+#       If you need accuracy, you should use decimal.Decimal() and read the
+#       REAL value as a string, which you give to decimal.Decimal constructor.
+#
+#
+# DATETIME and TIMESTAMP
+#
+#       These are "affinity datatypes" that instruct SQLite3 to make automatic
+#       conversions. As a rule, you do not want this. But if you still choose
+#       to pursue this approach, get to know SQLite3 adapters and converters,
+#       or at least sqlite3.PARSE_DECLTYPES and sqlite3.PARSE_COLNAMES
+#       connection 'detect_types='.
+#
+#       It is recommended that datetime information is stored as Unix timestamp
+#       into an INTEGER column.
+#
+#       If millisecond accuracy is required. REAL and Python's decimal.Decimal
+#       should be used.
 #
 import os
 import sqlite3
 
-conn = sqlite3.connect('pmapi.sqlite3')
+from pathlib import Path
+
+filename = "../pmapi.sqlite3"
+dbfile = Path(filename)
+if not dbfile.is_file():
+    print(filename, "not found!")
+    os._exit(-1)
+
+
+conn = sqlite3.connect(filename)
 cursor = conn.cursor()
 cursor.execute("PRAGMA foreign_keys = 1")
-
-def drop(table):
-    try:
-        cursor.execute("DROP TABLE {}".format(table))
-    except:
-        pass
 
 #
 # Drop in reverse order (foreign keys)
 #
-drop("note")
-drop("command")
-drop("register")
-drop("pulseheight")
-drop("hitcount")
-drop("testing_session")
-drop("pate")
-drop("psu")
+tables = [
+    "note",
+    "command",
+    "register",
+    "pulseheight",
+    "hitcount",
+    "housekeeping",
+    "testing_session",
+    "pate",
+    "psu"
+]
+ok = True
+for table in tables:
+    print("DROP '{}'...".format(table), end="", flush=True)
+    try:
+        cursor.execute("DROP TABLE {}".format(table))
+    except Exception as e:
+        if str(e)[:7] == "no such":
+            print("not found!")
+        else:
+            print(str(e))
+            ok = False
+    else:
+        print("done!")
+
+if not ok:
+    print("DROP tables was not successful. Terminating...")
+    os._exit(-1)
+
+#
+# Vacuum datafile
+#
+try:
+    cursor.execute("vacuum")
+except:
+    print("VACUUM failed!")
+    raise
+else:
+    print("VACUUM successful!")
 
 
+print("Creating new tables")
 try:
     #
     #   pate
@@ -53,6 +120,8 @@ try:
     )
     """
     cursor.execute(sql)
+    print("Table 'pate' created")
+
 
     #
     # testing_session
@@ -71,6 +140,8 @@ try:
     )
     """
     cursor.execute(sql)
+    print("Table 'testing_session' created")
+
 
     #
     # hitcount
@@ -97,7 +168,7 @@ try:
     #            1  D2 class
     #            2  trash classes
     #
-    #       Telescope naming; st = Sun-pointing Telescope, rt = Rotating Telescope.
+    #       Telescopes; st = Sun-pointing Telescope, rt = Rotating Telescope.
     #
     #       Design decision has been made to lay all these in a flat table,
     #       even though this generates more than a thousand columns.
@@ -116,7 +187,7 @@ try:
     sql = """
     CREATE TABLE hitcount
     (
-        rotation        DATETIME NOT NULL PRIMARY KEY,
+        timestamp       INTEGER NOT NULL DEFAULT CURRENT_TIME PRIMARY KEY,
         session_id      INTEGER NOT NULL,
     """
     cols = []
@@ -140,6 +211,8 @@ try:
     sql += "".join(cols)
     sql += " FOREIGN KEY (session_id) REFERENCES testing_session (id) )"
     cursor.execute(sql)
+    print("Table 'hitcount' created")
+
 
     #
     # pulseheight
@@ -167,6 +240,8 @@ try:
     )
     """
     cursor.execute(sql)
+    print("Table 'pulseheight' created")
+
 
     #
     # register
@@ -189,6 +264,7 @@ try:
     )
     """
     cursor.execute(sql)
+    print("Table 'register' created")
 
 
     #
@@ -208,7 +284,9 @@ try:
     )
     """
     cursor.execute(sql)
-    sql = """
+    print("Table 'note' created")
+
+    sql = """ -- make id into a timestamp with ms accuracy
     CREATE TABLE note2
     (
         id              INTEGER     NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -239,6 +317,7 @@ try:
     )
     """
     cursor.execute(sql)
+    print("Table 'command' created")
 
 
     #
@@ -249,18 +328,19 @@ try:
     (
         id                  INTEGER         NOT NULL DEFAULT 0 PRIMARY KEY,
         power               TEXT            NOT NULL,
-        voltage_setting     NUMBER          NOT NULL,
-        current_limit       NUMBER          NOT NULL,
-        measured_current    NUMBER          NOT NULL,
-        measured_voltage    NUMBER          NOT NULL,
+        voltage_setting     REAL            NOT NULL,
+        current_limit       REAL            NOT NULL,
+        measured_current    REAL            NOT NULL,
+        measured_voltage    REAL            NOT NULL,
         state               TEXT            NOT NULL,
-        modified            TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        modified            INTEGER         NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT          single_row_chk  CHECK (id = 0),
         CONSTRAINT          power_chk       CHECK (power IN ('ON', 'OFF')),
         CONSTRAINT          state_chk       CHECK (state IN ('OK', 'OVER CURRENT'))
     )
     """
     cursor.execute(sql)
+    print("Table 'psu' created")
     # SQLite doesn't have "CREATE OR REPLACE"
     trg = """
     CREATE TRIGGER psu_ari
@@ -273,6 +353,7 @@ try:
     END;
     """
     cursor.execute(trg)
+    print("Trigger 'psu_ari' created")
 
 
     #
@@ -292,11 +373,15 @@ try:
     sql += "".join(cols)
     sql += " FOREIGN KEY (session_id) REFERENCES testing_session (id) )"
     cursor.execute(sql)
+    print("Table 'housekeeping' created")
+
 
 except:
     print("Database creation failed!")
     print(sql)
     raise
+else:
+    print("Database creation successful!")
 finally:
     conn.close()
 
