@@ -58,7 +58,7 @@ This section discusses HTTP responses in general terms. Implementation strives t
         +-------------+---------+--------+---------+--------+--------+
         | Resource    | POST    | GET    | PUT     | PATCH  | DELETE |
         +-------------+---------+--------+---------+--------+--------+
-        | /user	      | Create  | Search | 405     | 405    | 405    |
+        | /user       | Create  | Search | 405     | 405    | 405    |
         | /user/<:id> | 405     | Fetch  | Replace | Update | Delete |
         +-------------+---------+--------+---------+--------+--------+
 
