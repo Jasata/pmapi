@@ -5,12 +5,13 @@
 # Foresail-1 / PATE Monitor / Middleware (PMAPI)
 # Class for PATE Hit Counter Data
 #
-# Hitcount.py - Jani Tammi <jasata@utu.fi>
+# HitCount.py - Jani Tammi <jasata@utu.fi>
 #
 #   0.1.0   2018.10.20  Initial version.
 #   0.2.0   2018.10.29  Complies to new api.response() specs.
 #   0.3.0   2018.11.04  Complies with new DataObject pattern.
 #   0.3.1   2018.11.11  Renamed to 'Hitcount' to confuse users less.
+#   0.3.2   2018.11.11  Renamed to 'HitCount'.
 #
 #
 #   Hit counter values for energy and type classified (by PATE).
@@ -47,7 +48,7 @@ from application        import app
 from .                  import InvalidArgument, NotFound
 from .                  import DataObject
 
-class Hitcount(DataObject):
+class HitCount(DataObject):
 
     # Class variables
     sql         = ""

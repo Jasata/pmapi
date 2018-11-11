@@ -205,8 +205,8 @@ def hitcount():
     A JSON list of objects is returned. Among object properties, primary key 'rotation' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
     log_request(request)
     try:
-        from api.Hitcount import Hitcount
-        return api.response(Hitcount(request).get())
+        from api.HitCount import HitCount
+        return api.response(HitCount(request).get())
     except Exception as e:
         return api.exception_response(e)
 
@@ -230,12 +230,12 @@ def hitcount_aggregate(function):
     A JSON list containing a single object is returned. The identifier field ('rotation') is never included, because that would defeat the purpose of the aggregate functions. Allowed aggregate functions are: avg, sum, min, max and count."""
     log_request(request)
     try:
-        from api.Hitcount import Hitcount
+        from api.HitCount import HitCount
         if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
             raise api.InvalidArgument(
                 "Function '{}' is not supported!".format(function)
             )
-        return api.response(Hitcount(request).get(function))
+        return api.response(HitCount(request).get(function))
     except Exception as e:
         return api.exception_response(e)
 
@@ -489,9 +489,9 @@ def hitcount_csv():
     """
     log_request(request)
     try:
-        from api.Hitcount import Hitcount
+        from api.HitCount import HitCount
         # Use .query() method which returns sqlite3.Cursor object
-        return api.stream_result_as_csv(Hitcount(request).query())
+        return api.stream_result_as_csv(HitCount(request).query())
     except api.ApiException as e:
         app.logger.warning(str(e))
         return flask.Response(str(e), status=e.code, mimetype="text/plain")
