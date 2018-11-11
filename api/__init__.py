@@ -129,6 +129,8 @@ class DataObject(list):
         def __missing__(self, key):
             """Return None if non-existing key is accessed"""
             return None
+        def __str__(self):
+            return self.getattr('name', '(null)')
 
     def __init__(self, cursor, table, exclude = []):
         # pragma_table_info() columns:
@@ -164,6 +166,16 @@ class DataObject(list):
         return [col.name for col in self if col.primarykey]
 
 
+    def missing_columns(self, columns):
+        """Returns False if provided list of column names contain any that do not exist in the database table."""
+        existing = self.columns
+        missing = []
+        for column in columns:
+            if column not in existing:
+                missing.append(column)
+        return missing
+
+
     def get_column_objects(
         self,
         include = [],
@@ -190,7 +202,9 @@ class DataObject(list):
         else:
             flist = []
             for col in self:
+                app.logger.debug(col.name)
                 if col.primarykey and include_primarykeys:
+                    # Forced inclusion for pk
                     flist.append(col)
                 elif col.name in include and col.name not in exclude:
                     flist.append(col)
@@ -206,6 +220,16 @@ class DataObject(list):
         """See get_column_objects() for documentation. This function returns a list of names (strings)."""
         lst = self.get_column_objects(include, exclude, include_primarykeys)
         return [c.name for c in lst]
+
+
+    def select_typecast(self, column):
+        """Take column object argument and return string representation of the column name, with datatype specific typecasting, if necessary."""
+        if column.datatype == 'TIMESTAMP':
+            return "CAST(strftime('%s', {0}) as integer) AS {0}".format(column.name)
+        elif column.datatype == 'DATETIME':
+            return "datetime({0}) AS {0}".format(column.name)
+        else:
+            return column.name
 
 
     def select_columns(

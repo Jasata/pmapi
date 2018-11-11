@@ -14,6 +14,7 @@
 #   0.3.2   2018.10.31  Fixed automatic endpoint listing.
 #   0.3.3   2018.10.31  HTML brackets converted for HTML output only.
 #   0.3.4   2018.11.05  Comments and docstrings.
+#   0.3.5   2018.11.11  ClassifiedData renamed to Hitcount
 #
 #
 #   Actual processing is to be done API resource classes/objects. HTTP response
@@ -152,6 +153,8 @@ def pulseheight():
     except Exception as e:
         return api.exception_response(e)
 
+
+
 @app.route('/api/pulseheight/<string:function>', methods=['GET'])
 def pulseheight_aggregate(function):
     """Aggregated raw PATE pulse height data.
@@ -180,12 +183,12 @@ def pulseheight_aggregate(function):
         return api.exception_response(e)
 
 
-###############################################################################
+
 #
 # Science Data (hit counters)
 #
-@app.route('/api/classifieddata', methods=['GET'])
-def classifieddata_get():
+@app.route('/api/hitcount', methods=['GET'])
+def hitcount():
     """Classified PATE hit counters
 
     Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Field/column descriptions are unavailable until they have been formally specified by instrument development.
@@ -197,20 +200,20 @@ def classifieddata_get():
 
     Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
 
-    GET /api/classifieddata
+    GET /api/hitcount
 
     A JSON list of objects is returned. Among object properties, primary key 'rotation' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
     log_request(request)
     try:
-        from api.ClassifiedData import ClassifiedData
-        return api.response(ClassifiedData(request).get())
+        from api.Hitcount import Hitcount
+        return api.response(Hitcount(request).get())
     except Exception as e:
         return api.exception_response(e)
 
 
 
-@app.route('/api/classifieddata/<string:function>', methods=['GET'])
-def classifieddata_aggregate(function):
+@app.route('/api/hitcount/<string:function>', methods=['GET'])
+def hitcount_aggregate(function):
     """Aggregated classified PATE particle hits
 
     Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Information on rotational period or starting time of each sector is not available within data. It must be deciphered separately, if needed.
@@ -222,17 +225,17 @@ def classifieddata_aggregate(function):
 
     Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
 
-    GET /api/classifieddata/<string:function>
+    GET /api/hitcount/<string:function>
 
     A JSON list containing a single object is returned. The identifier field ('rotation') is never included, because that would defeat the purpose of the aggregate functions. Allowed aggregate functions are: avg, sum, min, max and count."""
     log_request(request)
     try:
-        from api.ClassifiedData import ClassifiedData
+        from api.Hitcount import Hitcount
         if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
             raise api.InvalidArgument(
                 "Function '{}' is not supported!".format(function)
             )
-        return api.response(ClassifiedData(request).get(function))
+        return api.response(Hitcount(request).get(function))
     except Exception as e:
         return api.exception_response(e)
 

@@ -92,6 +92,16 @@ class PulseHeight(DataObject):
                 str(e)
             )
 
+        #
+        # Complain if args.fields contains non-existent columns
+        #
+        if self.missing_columns(self.args.fields):
+            raise InvalidArgument(
+                "Non-existent fields defined!",
+                "Field(s) " + ","
+                .join(self.missing_columns(self.args.fields)) + " do not exist!"
+            )
+
 
     def query(self, aggregate=None):
         """
@@ -105,27 +115,35 @@ class PulseHeight(DataObject):
         # Prepare SQL Statement
         #
         try:
-            self.sql = "SELECT "
-            # api/__init__.py:DataObject().select_columns()
-            self.sql += self.select_columns(
+            # api/__init__.py:DataObject().get_column_objects()
+            cols = self.get_column_objects(
                 include = self.args.fields or [],
-                exclude = ['session_id']
+                exclude=['session_id']
             )
-            self.sql +=" FROM pulseheight "
 
+            #
+            # In aggregate request, drop primary key(s).
+            # Use aggregate function only for INTEGER or REAL columns.
+            #
+            columnlist = []
+            if aggregate:
+                for col in cols:
+                    if not col.primarykey:
+                        if col.datatype in ('INTEGER', 'REAL'):
+                            columnlist.append(
+                                "{0}({1}) as {1}".format(aggregate, col.name)
+                            )
+                        else:
+                            columnlist.append(
+                                self.select_typecast(col)
+                            )
+            else:
+                # No aggregate defined
+                columnlist = [self.select_typecast(col) for col in cols]
 
-            # if aggregate:
-            #     # For aggregated queries, remove PK columns
-            #     cols = ",".join([
-            #         "{0}({1}) as {1}".format(aggregate, col)
-            #         for col in self.columns if col not in self.primarykeys
-            #     ])
-            #     #for pk in primarykeys:
-            #     #    cols.remove(pk)
-            # else:
-            #     cols = ",".join(cols)
-
-
+            self.sql = "SELECT "
+            self.sql += ", ".join(columnlist)
+            self.sql +=" FROM pulseheight"
 
             #
             # WHERE conditions
@@ -161,11 +179,10 @@ class PulseHeight(DataObject):
             self.cursor.execute(self.sql, self.args)
         except:
             app.logger.exception(
-                "Query failure! SQL='{}', bvars='{}'"
+                "Query failure! SQL='{}', args='{}'"
                 .format(self.sql, self.args)
             )
             raise
-
 
         # Mind not to close the cursor
         return self.cursor
@@ -173,12 +190,12 @@ class PulseHeight(DataObject):
 
 
     def get(self, aggregate=None):
-        """Fetch and Search request handled."""
+        """Handle Fetch and Search requests."""
         cursor = self.query(aggregate)
         # https://medium.com/@PyGuyCharles/python-sql-to-json-and-beyond-3e3a36d32853
         # turn result object into a list of row-dictionaries
         # (result-)table column names are used as keys in key-value pairs.
-        if self.args.timestamp:
+        if self.args.timestamp or aggregate:
             # Fetch request - return object
             result = cursor.fetchall()
             if len(result) < 1:
@@ -192,15 +209,17 @@ class PulseHeight(DataObject):
             # Search request - return a list of objects
             data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
 
+        # pop fields out of self.args
+        fields = self.args.pop('fields', None)
         if app.config.get("DEBUG", False):
             return (
                 200,
                 {
                     "data"          : data,
                     "query" : {
-                        "sql"               : self.sql,
-                        "bind variables"    : self.args,
-                        "fields"            : self.args.fields or "ALL"
+                        "sql"       : self.sql,
+                        "variables" : self.args,
+                        "fields"    : fields or "ALL"
                     }
                 }
             )
