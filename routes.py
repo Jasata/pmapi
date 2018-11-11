@@ -127,17 +127,56 @@ def log_request(request):
 
 
 #
-# Sample Pulse Height Data (to be calibration data?)
+# Raw Pulse Height Data
 #
 @app.route('/api/pulseheight', methods=['GET'])
 def pulseheight():
-    """Raw PATE pulse height data."""
+    """Raw PATE pulse height data.
+    
+    Accepts request parameters:
+    begin - PATE timestamp (optional)
+    end - PATE timestamp (optional)
+    fields - Comman separated list of fields that are included in the returned dataset (optional).
+    
+    Returns a list of objects:
+    {
+        "api" : {...},
+        "data" : [ {...}, ... ],
+        "query" : {...}
+    }
+    Query element is returned only in debug mode."""
     log_request(request)
     try:
         from api.PulseHeight import PulseHeight
         return api.response(PulseHeight(request).get())
     except Exception as e:
-        # Handles both ApiException and Exception derivates
+        return api.exception_response(e)
+
+@app.route('/api/pulseheight/<string:function>', methods=['GET'])
+def pulseheight_aggregate(function):
+    """Aggregated raw PATE pulse height data.
+
+    Accepts request parameters:
+    begin - PATE timestamp (optional)
+    end - PATE timestamp (optional)
+    fields - Comman separated list of fields that are included in the returned dataset (optional).
+
+    Returns an aggregated result object:
+    {
+        "api" : {...},
+        "data" : {...},
+        "query" : {...}
+    }
+    Query element is returned only in debug mode."""
+    log_request(request)
+    try:
+        from api.PulseHeight import PulseHeight
+        if function.lower() not in ('avg', 'sum', 'min', 'max', 'count'):
+            raise api.InvalidArgument(
+                "Function '{}' is not supported!".format(function)
+            )
+        return api.response(PulseHeight(request).get(function))
+    except Exception as e:
         return api.exception_response(e)
 
 
@@ -305,7 +344,7 @@ def note():
 
 
 @app.route('/api/note/<int:timestamp>', methods=["GET"])
-def note_identified(timestamp):
+def note_by_id(timestamp):
     """Fetch operator note (identified by timestamp)."""
     log_request(request)
     try:
@@ -322,24 +361,61 @@ def note_identified(timestamp):
 # Command interface
 #
 @app.route('/api/psu', methods=['GET'])
+def psu():
+    """Read PSU values.
+
+    GET /api/psu
+    No request parameters supported.
+    Returns a row from 'psu' table:
+    {
+        "api" : {...},
+        "data" : {
+            "power": "OFF" | "ON",
+            "state": "OK" | "OVER CURRENT",
+            "measured_current": (float),
+            "measured_voltage": (float),
+            "voltage_setting": (float),
+            "current_limit": (float),
+            "modified": (int)
+        },
+        "query" : {...}
+    }
+
+    If the backend is not running, 404 Not Found is returned.
+    """
+    log_request(request)
+    try:
+        from api.PSU import PSU
+        return api.response(PSU(request).get())
+    except Exception as e:
+        return api.exception_response(e)
+
+
 @app.route('/api/psu/voltage', methods=['GET', 'POST'])
+def psu_voltage():
+    """Read or set PSU output voltage.
+
+    GET /api/psu/voltage
+    No request parameters supported.
+    Response returns:
+    "voltage" : (float) Most recent measured output voltage.
+    "measured" : (string) When the measurement was taken."""
+    log_request(request)
+    try:
+        from api.PSU import PSU
+        if request.method == 'GET':
+            return api.response(PSU(request).get())
+        else:
+            return api.response(PSU.post(request))
+    except Exception as e:
+        return api.exception_response(e)
+
+
 @app.route('/api/psu/current', methods=['GET'])
 @app.route('/api/psu/current/limit', methods=['GET', 'POST'])
 @app.route('/api/psu/power', methods=['GET', 'POST'])
-def psu():
+def psu_other():
     """Agilent power supply remote control.
-    
-    GET /api/psu
-    No request parameters supported.
-    Response returns a row from 'psu' table, containing values:
-      'power' ['ON', 'OFF'], indicating if the powerline is fed.
-      'voltage' (float), the configured output voltage.
-      'current_limit' (float), the configured current limit.
-      'measured_current' (float), reported current at output terminal.
-      'measured_voltage' (float), reported voltage at output terminal.
-      'state' ['OK', 'OVER CURRENT'], reported state of operations.
-      'modified' (float), Unix timestamp (with fractions of seconds) on when this row was generated.
-
     GET /api/psu/voltage
     No request parameters supported.
     Response returns voltage information. 'voltage' : {'measured' : x.x, 'set' : x.x}

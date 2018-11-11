@@ -26,11 +26,11 @@
 #
 # PSU data
 #
-#       power               [ON | OFF]  PSU itself must obviously remain powered,
-#                                       this represents the powerline output.
-#                                       When toggling back to 'ON' state, the PSU
-#                                       is required to remember voltage and limit
-#                                       settings.
+#       power               [ON | OFF]  PSU itself must obviously remain
+#                                       powered, this represents the powerline
+#                                       output. When toggling back to 'ON'
+#                                       state, the PSU is required to remember
+#                                       voltage and limit settings.
 #       voltage_setting     float       Effective voltage setting.
 #       current_limit       float       Effective current limit value.
 #       measured_voltage    float       Measured output voltage.
@@ -58,40 +58,67 @@ import sqlite3
 from flask              import g
 from application        import app
 from .                  import InvalidArgument, Timeout, NotFound
+from .                  import DataObject
 
-class PSU:
+class PSU(DataObject):
 
     # 500 ms result polling from 'command' table, before timeout
     polling_timeout = 0.5
 
-    @staticmethod
-    def get(request):
-        """Retrieve and return all PSU values; voltage, current and current limit."""
+    def __init__(self, request):
+        """No need to parse - no request arguments supported"""
+        self.cursor = g.db.cursor()
+        super().__init__(self.cursor, 'psu')
+        if request.args:
+            raise InvalidArgument(
+                "This endpoint does not support any request arguments!"
+            )
+
+
+    def get(self):
+        """Retrieve and return 'psu' table row. The table either has no rows (backend is not running) or there is only one row."""
         try:
-            cursor = g.db.cursor()
-            sql = "SELECT * FROM psu"
+            self.sql = "SELECT "
+            self.sql += self.select_columns(
+                exclude=["id"],
+                include_primarykeys = False
+            )
+            self.sql += " FROM psu"
             try:
-                cursor.execute(sql)
+                self.cursor.execute(self.sql)
             except sqlite3.Error as e:
                 app.logger.exception(
-                    "psu -table query failed! ({})".format(sql)
+                    "psu -table query failed! ({})".format(self.sql)
                 )
                 raise
             else:
-                result = cursor.fetchall()
+                # list of tuples
+                result = self.cursor.fetchall()
                 if len(result) < 1:
                     raise NotFound(
                         "No data in table 'psu'!",
                         "Most likely cause is that the OBC emulator is not running."
                     )
             # Create data dictionary from result
-            data = [dict(zip([key[0] for key in cursor.description], row)) for row in result]
-            # remove the 'id' that has no meaning in GUI implementation
-            data.pop('id', None)
+            data = dict(zip([c[0] for c in self.cursor.description], result[0]))
         finally:
-            cursor.close()
+            self.cursor.close()
 
-        return (200, {'data': data, 'debug': {'sql': sql}})
+        if app.config.get("DEBUG", False):
+            return (
+                200,
+                {
+                    "data"          : data,
+                    "query" : {
+                        "sql"       : self.sql,
+                        "variables" : None,
+                        "fields"    : None
+                    }
+                }
+            )
+        else:
+            return (200, {"data": data})
+
 
 
     @staticmethod

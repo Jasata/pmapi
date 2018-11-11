@@ -87,7 +87,9 @@ class ClassifiedData:
                 # Raise exception for request unsupported arguments
                 for k, _ in request.args.items():
                     if k not in ('fields', 'begin', 'end', 'timestamp'):
-                        raise InvalidArgument("Unsupported argument '{}'".format(k))
+                        raise InvalidArgument(
+                            "Unsupported argument '{}'".format(k)
+                        )
                 try:
                     fields      = request.args.get('fields',    None)
                     timestamp   = request.args.get('timestamp', None)
@@ -202,7 +204,7 @@ class ClassifiedData:
                 200,
                 {
                     "data"          : data,
-                    "query details" : {
+                    "query" : {
                         "sql"               : self.sql,
                         "bind variables"    : self.bvars,
                         "fields"            : self.fields or "ALL"
@@ -213,10 +215,6 @@ class ClassifiedData:
             return (200, {"data": data})
 
 
-
-    def csv(self):
-        # Simply return the cursor. Api will stream it out.
-        return self.query()
 
 
 # EOF

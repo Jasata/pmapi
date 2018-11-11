@@ -105,6 +105,22 @@ from application    import app
 #   SQLite natively supports only the types TEXT, INTEGER, REAL, BLOB and NULL.
 #
 class DataObject(list):
+    # class Column:
+    #     __slots__ = ('name', 'datatype', 'nullable', 'default', 'primarykey')
+    #     def __init__(
+    #         self,
+    #         name,
+    #         datatype,
+    #         nullable,
+    #         default,
+    #         primarykey
+    #     ):
+    #         self.name       = name
+    #         self.datatype   = datatype
+    #         self.nullable   = nullable
+    #         self.default    = default
+    #         self.primarykey = primarykey
+
     class DotDict(dict):
         """dot.notation access to dictionary attributes"""
         __getattr__ = dict.get
@@ -127,7 +143,7 @@ class DataObject(list):
             if row[1] not in exclude:
                 self.append(
                     self.DotDict(
-                        name      = row[1],
+                        name        = row[1],
                         datatype    = row[2],
                         nullable    = True if row[3] == 0 else False,
                         default     = row[4],
@@ -146,6 +162,50 @@ class DataObject(list):
     def primarykeys(self):
         """Returns a list of primary key columns."""
         return [col.name for col in self if col.primarykey]
+
+
+    def get_column_objects(
+        self,
+        include = [],
+        exclude = [],
+        include_primarykeys = True
+    ):
+        """Get a list of column objects.
+
+        All arguments are optional.
+        include - list of column names to include
+        exclude - list of column names to exlude
+        include_primarykeys - True | False if primary keys are to be included
+
+        If optional 'include' list can be provided, the result list to specified. However, if 'include_primary_keys' is True, the parsed string will always contain also the primary key columns - even if they are not defined in the 'include' and excluded in the 'exclude' list.
+        
+        If a column is defined in both 'include' and 'exclude', exclude list will take precedence and column is not included. Only exception to this rule are primary key columns (when 'include_primarykeys' is True)."""
+        # Purge primary keys from exclude list, if 'include_primarykeys'
+        if exclude and include_primarykeys:
+            exclude = [col for col in exclude if col not in self.primarykeys]
+        # Compile list of column objects/dicts
+        if not include:
+            # empty 'include' equals ALL fields (except 'excluded')
+            flist = [col for col in self if col.name not in exclude]
+        else:
+            flist = []
+            for col in self:
+                if col.primarykey and include_primarykeys:
+                    flist.append(col)
+                elif col.name in include and col.name not in exclude:
+                    flist.append(col)
+        return flist
+
+
+    def get_column_names(
+        self,
+        include = [],
+        exclude = [],
+        include_primarykeys = True
+    ):
+        """See get_column_objects() for documentation. This function returns a list of names (strings)."""
+        lst = self.get_column_objects(include, exclude, include_primarykeys)
+        return [c.name for c in lst]
 
 
     def select_columns(

@@ -26,7 +26,7 @@ import sqlite3
 #
 from flask              import g
 from application        import app
-from .                  import InvalidArgument
+from .                  import InvalidArgument, NotFound
 from .                  import DataObject
 
 class PulseHeight(DataObject):
@@ -93,7 +93,7 @@ class PulseHeight(DataObject):
             )
 
 
-    def query(self):
+    def query(self, aggregate=None):
         """
         Return pulse height data in JSON format. Three allowed usages:
         1. (no arguments)   All records are returned
@@ -113,6 +113,20 @@ class PulseHeight(DataObject):
             )
             self.sql +=" FROM pulseheight "
 
+
+            # if aggregate:
+            #     # For aggregated queries, remove PK columns
+            #     cols = ",".join([
+            #         "{0}({1}) as {1}".format(aggregate, col)
+            #         for col in self.columns if col not in self.primarykeys
+            #     ])
+            #     #for pk in primarykeys:
+            #     #    cols.remove(pk)
+            # else:
+            #     cols = ",".join(cols)
+
+
+
             #
             # WHERE conditions
             #
@@ -129,22 +143,13 @@ class PulseHeight(DataObject):
                     )
                 if self.args.end:
                     conditions.append(
-                        self.where_condition('timestamp') + " >= :end"
+                        self.where_condition('timestamp') + " <= :end"
                     )
                 if self.args.session_id:
                     conditions.append("session_id = :session_id")
             if conditions:
                 self.sql += " WHERE " + " AND ".join(conditions)
 
-            #
-            # Bind variables
-            #
-            # self.bvars = {
-            #     'timestamp'     : self.timestamp,
-            #     'begin'         : self.begin,
-            #     'end'           : self.end,
-            #     'session_id'    : self.session_id or None
-            # }
         except:
             app.logger.exception("Query preparations failed!")
             raise
@@ -167,19 +172,32 @@ class PulseHeight(DataObject):
 
 
 
-    def get(self):
-        cursor = self.query()
+    def get(self, aggregate=None):
+        """Fetch and Search request handled."""
+        cursor = self.query(aggregate)
         # https://medium.com/@PyGuyCharles/python-sql-to-json-and-beyond-3e3a36d32853
         # turn result object into a list of row-dictionaries
         # (result-)table column names are used as keys in key-value pairs.
-        data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
+        if self.args.timestamp:
+            # Fetch request - return object
+            result = cursor.fetchall()
+            if len(result) < 1:
+                raise NotFound(
+                    "Pulseheight record not found!",
+                    "Provided timestamp '{}' does not match any in the database"
+                    .format(self.args.timestamp)
+                )
+            data = dict(zip([c[0] for c in cursor.description], result[0]))
+        else:
+            # Search request - return a list of objects
+            data = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor]
 
         if app.config.get("DEBUG", False):
             return (
                 200,
                 {
                     "data"          : data,
-                    "query details" : {
+                    "query" : {
                         "sql"               : self.sql,
                         "bind variables"    : self.args,
                         "fields"            : self.args.fields or "ALL"

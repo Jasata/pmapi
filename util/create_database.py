@@ -153,7 +153,7 @@ try:
     sql = """
     CREATE TABLE pulseheight
     (
-        timestamp       DATETIME NOT NULL PRIMARY KEY,
+        timestamp       INTEGER NOT NULL DEFAULT CURRENT_TIME PRIMARY KEY,
         session_id      INTEGER NOT NULL,
         ac1             INTEGER NOT NULL,
         d1a             INTEGER NOT NULL,
