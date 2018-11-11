@@ -474,8 +474,8 @@ def psu_other():
 # CSV exports
 #
 #
-@app.route('/csv/classifieddata', methods=['GET'])
-def csv_classifieddata():
+@app.route('/csv/hitcount', methods=['GET'])
+def hitcount_csv():
     """Export PATE hit counts into CSV file.
 
     Request parameters:
@@ -489,9 +489,9 @@ def csv_classifieddata():
     """
     log_request(request)
     try:
-        from api.ClassifiedData import ClassifiedData
+        from api.Hitcount import Hitcount
         # Use .query() method which returns sqlite3.Cursor object
-        return api.stream_result_as_csv(ClassifiedData(request).query())
+        return api.stream_result_as_csv(Hitcount(request).query())
     except Exception as e:
         app.logger.exception(
             "CSV generation failure! " + str(e)
@@ -501,16 +501,24 @@ def csv_classifieddata():
 
 
 @app.route('/csv/pulseheight', methods=['GET'])
-def csv_pulseheight():
+def pulseheight_csv():
     """Export PATE raw pulse height data into CSV file.
     NOT YET IMPLEMENTED!"""
     log_request(request)
-    return app.response_class(status = 501, mimetype = "text/html")
+    try:
+        from api.PulseHeight import PulseHeight
+        return api.stream_result_as_csv(PulseHeight(request).query())
+    except Exception as e:
+        app.logger.exception(
+            "CSV generation failure! " + str(e)
+        )
+        raise
+    #return app.response_class(status = 501, mimetype = "text/html")
 
 
 
 @app.route('/csv/housekeeping', methods=['GET'])
-def csv_housekeeping():
+def housekeeping_csv():
     """Export PATE housekeeping data into CSV file.
 
     Request parameters:
@@ -535,7 +543,7 @@ def csv_housekeeping():
 
 
 @app.route('/csv/note', methods=["GET"])
-def csv_note():
+def note_csv():
     """Export operator notes into a CSV file.
 
     Accepted request parameters:

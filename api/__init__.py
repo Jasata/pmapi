@@ -168,6 +168,8 @@ class DataObject(list):
 
     def missing_columns(self, columns):
         """Returns False if provided list of column names contain any that do not exist in the database table."""
+        if not columns:
+            return []
         existing = self.columns
         missing = []
         for column in columns:
