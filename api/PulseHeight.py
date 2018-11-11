@@ -72,11 +72,11 @@ class PulseHeight(DataObject):
                     end         = request.args.get('end',           None)
                     session_id  = request.args.get('session_id',    None)
                 except Exception as e:
-                    # Raise api.ApiException
+                    # Replace with api.ApiException
                     raise InvalidArgument(
                         "Argument extraction failed!",
                         {'arguments' : request.args, 'exception' : str(e)}
-                    )
+                    ) from None
 
                 # Convert to desired types (or create as None's)
                 self.args.fields     = fields.split(',') if fields     else None
@@ -85,12 +85,14 @@ class PulseHeight(DataObject):
                 self.args.end        = int(end)          if end        else None
                 self.args.session_id = int(session_id)   if session_id else None
 
+        except InvalidArgument:
+            raise
         except Exception as e:
-            # Raise api.ApiException
+            # Replace with api.ApiException
             raise InvalidArgument(
                 "Parameter parsing failed!",
                 str(e)
-            )
+            ) from None
 
         #
         # Complain if args.fields contains non-existent columns
