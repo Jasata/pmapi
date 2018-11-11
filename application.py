@@ -204,6 +204,8 @@ def before_request():
         g.db = sqlite3.connect(
             app.config.get('SQLITE3_DATABASE_FILE', 'pmapi.sqlite3')
         )
+        cursor = g.db.cursor()
+        cursor.execute("PRAGMA foreign_keys = 1")
 
     return
 
