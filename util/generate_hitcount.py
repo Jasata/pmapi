@@ -7,6 +7,7 @@
 #   0.1.0   2018.10.23  Initial version.
 #   0.2.0   2018.10.30  Now adapts to hitcount table columns automatically.
 #   0.2.1   2018.11.05  Accepts one command line argument (rotation count).
+#   0.2.2   2018.11.11  Checks for the existance of the database file.
 #
 # https://www.sqlite.org/limits.html
 # SQLITE_MAX_SQL_LENGTH     Default is 1'000'000.
@@ -21,7 +22,7 @@ import random
 import sqlite3
 
 class Config:
-    db_file     = "pmapi.sqlite3"
+    db_file     = "../pmapi.sqlite3"
     table_name  = "hitcount"
     interval    = 15   # in seconds
     rotations   = 5760 # one day of data
@@ -91,6 +92,12 @@ if __name__ == '__main__':
     except:
         pass
 
+    from pathlib import Path
+
+    dbfile = Path(Config.db_file)
+    if not dbfile.is_file():
+        print(Config.db_file, "not found!")
+        os._exit(-1)
 
     connection = sqlite3.connect(Config.db_file)
     cursor = connection.cursor()
