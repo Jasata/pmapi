@@ -492,6 +492,9 @@ def hitcount_csv():
         from api.Hitcount import Hitcount
         # Use .query() method which returns sqlite3.Cursor object
         return api.stream_result_as_csv(Hitcount(request).query())
+    except api.ApiException as e:
+        app.logger.warning(str(e))
+        return flask.Response(str(e), status=e.code, mimetype="text/plain")
     except Exception as e:
         app.logger.exception(
             "CSV generation failure! " + str(e)
@@ -508,6 +511,9 @@ def pulseheight_csv():
     try:
         from api.PulseHeight import PulseHeight
         return api.stream_result_as_csv(PulseHeight(request).query())
+    except api.ApiException as e:
+        app.logger.warning(str(e))
+        return flask.Response(str(e), status=e.code, mimetype="text/plain")
     except Exception as e:
         app.logger.exception(
             "CSV generation failure! " + str(e)
@@ -534,6 +540,9 @@ def housekeeping_csv():
     try:
         from api.Housekeeping import Housekeeping
         return api.stream_result_as_csv(Housekeeping(request).query())
+    except api.ApiException as e:
+        app.logger.warning(str(e))
+        return flask.Response(str(e), status=e.code, mimetype="text/plain")
     except Exception as e:
         app.logger.exception(
             "CSV generation failure! " + str(e)
@@ -556,6 +565,9 @@ def note_csv():
     try:
         from api.Note import Note
         return api.stream_result_as_csv(Note(request).query())
+    except api.ApiException as e:
+        app.logger.warning(str(e))
+        return flask.Response(str(e), status=e.code, mimetype="text/plain")
     except Exception as e:
         app.logger.exception(
             "CSV generation failure! " + str(e)
