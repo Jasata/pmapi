@@ -114,6 +114,15 @@ class PulseHeight(DataObject):
         'timestamp', 'begin' and 'end' are UNIX datetime stamps.
         """
         #
+        # Complain about unsupported aggregate functions
+        #
+        if aggregate not in ('avg', 'sum', 'min', 'max', 'count'):
+            raise InvalidArgument(
+                "Unsupported aggregate function specified!",
+                "Aggregate function '{}' is not supported"
+                .format(aggregate)
+            )
+        #
         # Prepare SQL Statement
         #
         try:

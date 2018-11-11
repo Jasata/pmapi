@@ -19,7 +19,7 @@ import sqlite3
 
 from flask              import g
 from application        import app
-from .                  import InvalidArgument
+from .                  import InvalidArgument, NotFound
 from .                  import DataObject
 
 class Housekeeping(DataObject):
@@ -107,6 +107,15 @@ class Housekeeping(DataObject):
     def query(self, aggregate=None):
         """Processes HTTP Request arguments and executes the query.
         Returns SQLite3.Cursor object (DataObject requirement)."""
+        #
+        # Complain about unsupported aggregate functions
+        #
+        if aggregate not in ('avg', 'sum', 'min', 'max', 'count'):
+            raise InvalidArgument(
+                "Unsupported aggregate function specified!",
+                "Aggregate function '{}' is not supported"
+                .format(aggregate)
+            )
         #
         # Prepare SQL Statement
         #

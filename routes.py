@@ -134,7 +134,7 @@ def log_request(request):
 def pulseheight():
     """Raw PATE pulse height data.
     
-    Accepts request parameters:
+    Accepts query parameters:
     begin - PATE timestamp (optional)
     end - PATE timestamp (optional)
     fields - Comman separated list of fields that are included in the returned dataset (optional).
@@ -159,7 +159,7 @@ def pulseheight():
 def pulseheight_aggregate(function):
     """Aggregated raw PATE pulse height data.
 
-    Accepts request parameters:
+    Accepts query parameters:
     begin - PATE timestamp (optional)
     end - PATE timestamp (optional)
     fields - Comman separated list of fields that are included in the returned dataset (optional).
@@ -193,7 +193,7 @@ def hitcount():
 
     Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Field/column descriptions are unavailable until they have been formally specified by instrument development.
 
-    Request parameters:
+    Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
@@ -218,7 +218,7 @@ def hitcount_aggregate(function):
 
     Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Information on rotational period or starting time of each sector is not available within data. It must be deciphered separately, if needed.
 
-    Request parameters:
+    Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
@@ -242,17 +242,16 @@ def hitcount_aggregate(function):
 
 
 
-###############################################################################
 #
 # Housekeeping
 #
 @app.route('/api/housekeeping', methods=['GET'])
-def housekeeping_get():
+def housekeeping():
     """PATE Housekeeping data
 
     Remains unspecified.
 
-    Request parameters:
+    Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
@@ -272,12 +271,12 @@ def housekeeping_get():
 
 
 @app.route('/api/housekeeping/<string:function>', methods=['GET'])
-def housekeeping(function):
+def housekeeping_aggregate(function):
     """Aggregated PATE Housekeeping data
 
     Remains unspecified.
 
-    Request parameters:
+    Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
@@ -300,7 +299,192 @@ def housekeeping(function):
 
 
 
-###############################################################################
+
+#
+# PSU
+#
+@app.route('/api/psu', methods=['GET'])
+def psu():
+    """Read PSU values.
+
+    GET /api/psu
+    No query parameters supported.
+    Returns a row from 'psu' table:
+    {
+        "api" : {...},
+        "data" : {
+            "power": "OFF" | "ON",
+            "state": "OK" | "OVER CURRENT",
+            "measured_current": (float),
+            "measured_voltage": (float),
+            "voltage_setting": (float),
+            "current_limit": (float),
+            "modified": (int)
+        },
+        "query" : {...}
+    }
+
+    If the backend is not running, 404 Not Found is returned.
+    """
+    log_request(request)
+    try:
+        from api.PSU import PSU
+        return api.response(PSU(request).get())
+    except Exception as e:
+        return api.exception_response(e)
+
+
+@app.route('/api/psu/voltage', methods=['GET', 'POST'])
+def psu_voltage():
+    """Read or set PSU output voltage.
+
+    GET /api/psu/voltage
+    No query parameters supported.
+    Response returns:
+    {
+        "api" : {...},
+        "data" : {
+            "measured_voltage": (float),
+            "voltage_setting": (float),
+            "modified": (int)
+        },
+        "query" : {...}
+    }
+
+    POST /api/psu/voltage
+    Required payload:
+    {
+        "voltage" : (float)
+    }
+    """
+    log_request(request)
+    try:
+        include = [
+            'measured_voltage',
+            'voltage_setting',
+            'modified'
+        ]
+        from api.PSU import PSU
+        if request.method == 'GET':
+            return api.response(PSU(request).get(include))
+        else:
+            #
+            # TODO TODO TODO TODO TODO TODO TODO TODO
+            #
+            return api.response(PSU(request).post())
+    except Exception as e:
+        return api.exception_response(e)
+
+
+@app.route('/api/psu/current', methods=['GET'])
+def psu_current():
+    """Read PSU current.
+
+    GET /api/psu/voltage
+    No query parameters supported.
+    Response returns:
+    {
+        "api" : {...},
+        "data" : {
+            "measured_current": (float),
+            "current_limit": (float),
+            "modified": (int)
+        },
+        "query" : {...}
+    }"""
+    log_request(request)
+    try:
+        include = [
+            'measured_current',
+            'current_limit',
+            'modified'
+        ]
+        from api.PSU import PSU
+        return api.response(PSU(request).get(include))
+    except Exception as e:
+        return api.exception_response(e)
+
+
+@app.route('/api/psu/current/limit', methods=['GET', 'POST'])
+def psu_current_limit():
+    """Read or Set Current Limit Value from PSU.
+
+    GET /api/psu/current/limit
+    No query parameters supported.
+    Response returns:
+    {
+        "api" : {...},
+        "data" : {
+            "current_limit": (float),
+            "modified": (int)
+        },
+        "query" : {...}
+    }
+
+    POST /api/psu/current/limit
+    Required payload:
+    {
+        "current_limit" : (float)
+    }"""
+    log_request(request)
+    try:
+        include = [
+            'current_limit',
+            'modified'
+        ]
+        from api.PSU import PSU
+        if request.method == 'GET':
+            return api.response(PSU(request).get(include))
+        else:
+            #
+            # TODO TODO TODO TODO TODO TODO TODO TODO
+            #
+            return api.response(PSU(request).post())
+    except Exception as e:
+        return api.exception_response(e)
+
+
+@app.route('/api/psu/power', methods=['GET', 'POST'])
+def psu_power():
+    """Agilent power supply remote control.
+
+    GET /api/psu/power
+    No query parameters supported.
+    Response returns:
+    {
+        "api" : {...},
+        "data" : {
+            "power": ["ON", "OFF"],
+            "modified": (int)
+        },
+        "query" : {...}
+    }
+
+    POST /api/psu/power
+    No query parameters supported.
+    Required payload:
+    {
+        "power" : ["ON", "OFF"]
+    }"""
+    log_request(request)
+    try:
+        include = [
+            'power',
+            'modified'
+        ]
+        from api.PSU import PSU
+        if request.method == 'GET':
+            return api.response(PSU(request).get(include))
+        else:
+            #
+            # TODO TODO TODO TODO TODO TODO TODO TODO
+            #
+            return api.response(PSU(request).post())
+    except Exception as e:
+        return api.exception_response(e)
+
+
+
 #
 # Register
 #
@@ -358,113 +542,6 @@ def note_by_id(timestamp):
         return api.exception_response(e)
 
 
-
-###############################################################################
-#
-# Command interface
-#
-@app.route('/api/psu', methods=['GET'])
-def psu():
-    """Read PSU values.
-
-    GET /api/psu
-    No request parameters supported.
-    Returns a row from 'psu' table:
-    {
-        "api" : {...},
-        "data" : {
-            "power": "OFF" | "ON",
-            "state": "OK" | "OVER CURRENT",
-            "measured_current": (float),
-            "measured_voltage": (float),
-            "voltage_setting": (float),
-            "current_limit": (float),
-            "modified": (int)
-        },
-        "query" : {...}
-    }
-
-    If the backend is not running, 404 Not Found is returned.
-    """
-    log_request(request)
-    try:
-        from api.PSU import PSU
-        return api.response(PSU(request).get())
-    except Exception as e:
-        return api.exception_response(e)
-
-
-@app.route('/api/psu/voltage', methods=['GET', 'POST'])
-def psu_voltage():
-    """Read or set PSU output voltage.
-
-    GET /api/psu/voltage
-    No request parameters supported.
-    Response returns:
-    "voltage" : (float) Most recent measured output voltage.
-    "measured" : (string) When the measurement was taken."""
-    log_request(request)
-    try:
-        from api.PSU import PSU
-        if request.method == 'GET':
-            return api.response(PSU(request).get())
-        else:
-            return api.response(PSU.post(request))
-    except Exception as e:
-        return api.exception_response(e)
-
-
-@app.route('/api/psu/current', methods=['GET'])
-@app.route('/api/psu/current/limit', methods=['GET', 'POST'])
-@app.route('/api/psu/power', methods=['GET', 'POST'])
-def psu_other():
-    """Agilent power supply remote control.
-    GET /api/psu/voltage
-    No request parameters supported.
-    Response returns voltage information. 'voltage' : {'measured' : x.x, 'set' : x.x}
-
-    POST /api/psu/voltage
-    No request parameters supported.
-    JSON payload must contain; {"voltage" : x.x}
-
-    GET /api/psu/current
-    No request parameters supported.
-    Response returns current information;
-    "measured" : x.x
-    "limit" : x.x
-
-    GET /api/psu/current/limit
-    No request parameters supported.
-    Response returns current limit value;
-    "limit" : x.x
-
-    POST /api/psu/current/limit
-    No request parameters supported.
-    JSON payload must contain;
-    "limit" : x.x
-
-    GET /api/psu/power
-    No request parameters supported.
-    Request return PSU power state;
-    "power" : "ON|OFF"
-    """
-    log_request(request)
-    try:
-        from api.PSU import PSU
-        if str(request.url_rule) == '/api/psu' and request.method == 'GET':
-            api.response(PSU.get(request))
-        elif str(request.url_rule) == '/api/psu/voltage' and request.method == 'POST':
-            api.response(PSU.post(request))
-        elif str(request.url_rule) == '/api/psu/current' and request.method == 'POST':
-            api.response(PSU.post(request))
-        else:
-            raise api.MethodNotAllowed(
-                "Method '{}' not supported for '{}'"
-                .format(request.method, request.url_rule)
-            )
-    except Exception as e:
-        # Handles both ApiException and Exception derivates
-        return api.exception_response(e)
 
 
 

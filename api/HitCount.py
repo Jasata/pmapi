@@ -133,6 +133,15 @@ class HitCount(DataObject):
         """Processes HTTP Request arguments and executes the query.
         Returns SQLite3.Cursor object (DataObject requirement)."""
         #
+        # Complain about unsupported aggregate functions
+        #
+        if aggregate not in ('avg', 'sum', 'min', 'max', 'count'):
+            raise InvalidArgument(
+                "Unsupported aggregate function specified!",
+                "Aggregate function '{}' is not supported"
+                .format(aggregate)
+            )
+        #
         # Prepare SQL Statement
         #
         try:

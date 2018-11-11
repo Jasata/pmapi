@@ -62,6 +62,16 @@ from .                  import DataObject
 
 class PSU(DataObject):
 
+    accepted_request_arguments = ('fields')
+    class DotDict(dict):
+        """dot.notation access to dictionary attributes"""
+        __getattr__ = dict.get
+        __setattr__ = dict.__setitem__
+        __delattr__ = dict.__delitem__
+        def __missing__(self, key):
+            """Return None if non-existing key is accessed"""
+            return None
+
     # 500 ms result polling from 'command' table, before timeout
     polling_timeout = 0.5
 
@@ -69,17 +79,60 @@ class PSU(DataObject):
         """No need to parse - no request arguments supported"""
         self.cursor = g.db.cursor()
         super().__init__(self.cursor, 'psu')
-        if request.args:
+        try:
+            # build empty arg dictionary
+            self.args = self.DotDict()
+            for var in self.accepted_request_arguments:
+                setattr(self.args, var, None)
+
+            if request.args:
+                # Raise exception for request unsupported arguments
+                for key, _ in request.args.items():
+                    if key not in self.accepted_request_arguments:
+                        raise InvalidArgument(
+                            "Unsupported argument '{}'".format(key)
+                        )
+
+                try:
+                    fields      = request.args.get('fields',        None)
+                except Exception as e:
+                    # Replace with api.ApiException
+                    raise InvalidArgument(
+                        "Argument extraction failed!",
+                        {'arguments' : request.args, 'exception' : str(e)}
+                    ) from None
+
+                # Convert to desired types (or create as None's)
+                self.args.fields     = fields.split(',') if fields     else None
+
+        except InvalidArgument:
+            raise
+        except Exception as e:
+            # Replace with api.ApiException
             raise InvalidArgument(
-                "This endpoint does not support any request arguments!"
+                "Parameter parsing failed!",
+                str(e)
+            ) from None
+
+        #
+        # Complain if args.fields contains non-existent columns
+        #
+        if self.missing_columns(self.args.fields):
+            raise InvalidArgument(
+                "Non-existent fields defined!",
+                "Field(s) " + ","
+                .join(self.missing_columns(self.args.fields)) + " do not exist!"
             )
 
 
-    def get(self):
+
+    def get(self, include=[]):
         """Retrieve and return 'psu' table row. The table either has no rows (backend is not running) or there is only one row."""
+
         try:
             self.sql = "SELECT "
             self.sql += self.select_columns(
+                include=self.args.fields or include,
                 exclude=["id"],
                 include_primarykeys = False
             )
@@ -104,6 +157,7 @@ class PSU(DataObject):
         finally:
             self.cursor.close()
 
+        fields = self.args.pop('fields', None)
         if app.config.get("DEBUG", False):
             return (
                 200,
@@ -112,7 +166,7 @@ class PSU(DataObject):
                     "query" : {
                         "sql"       : self.sql,
                         "variables" : None,
-                        "fields"    : None
+                        "fields"    : fields or "ALL"
                     }
                 }
             )
@@ -121,8 +175,7 @@ class PSU(DataObject):
 
 
 
-    @staticmethod
-    def post(request):
+    def post(self, request):
         """Support two PSU commands; 'voltage' and 'limit'. Each command
         takes one decimal argument (voltage or current). Accepted request
         parameters are thus, respective; 'fnc' and 'val'.
