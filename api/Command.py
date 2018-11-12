@@ -136,7 +136,7 @@ class Command(DataObject):
         """Enter new command into the database."""
         cmd2val = {
             "SET VOLTAGE"       : "voltage",
-            "SET CURRENT LIMIT" : "limit",
+            "SET CURRENT LIMIT" : "current_limit",
             "SET POWER"         : "power"
         }
         if command not in cmd2val:
