@@ -135,7 +135,7 @@ class HitCount(DataObject):
         #
         # Complain about unsupported aggregate functions
         #
-        if aggregate not in ('avg', 'sum', 'min', 'max', 'count'):
+        if aggregate and aggregate not in ('avg', 'sum', 'min', 'max', 'count'):
             raise InvalidArgument(
                 "Unsupported aggregate function specified!",
                 "Aggregate function '{}' is not supported"
