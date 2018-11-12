@@ -29,10 +29,11 @@ import sqlite3
 from flask          import g, request
 from application    import app
 from .              import InvalidArgument, NotFound
-from .              import Table
+from .              import DataObject
 
 
-class Note(Table):
+# TODO 
+class Note(DataObject):
 
     # Allow the inspection of SQL and variables after query()
     sql             = ""

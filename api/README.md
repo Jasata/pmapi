@@ -102,13 +102,17 @@ URI parameters: None
 **Possible Replies**
 
         Code                    Payload                 Description
-        200 OK                  'data': {}              Success. Object is returned.
+        200 OK                  (case dependent)        Success. Procedure or function completed successfully.
+        201 Created             'id' : <int>            New entity/respirce created.
+        202 Accepted            'command_id' : <int>    Asyncronous action queued (command interface, mostly).
         401 Unauthorized        None                    Access/authorization error.
         405 Method not allowed  None                    Endpoint + method combo not supported.
         406 Not Acceptable      None                    Argument error or DB CHECK constraint failure.
         409 Conflict            None                    Unique, Primary key or Foreign key violation.
 
-The rationaly for "200 OK" to return the whole object is that entities commonly get additional attributes and/or have submitted attributes altered. They also gain the ID value, which is relevant for the client solution.
+Most common reply is 201 along with the ID of the newly created resources. The cases where this is not appropriate are commands (prodecures and functions). Commands that can be executed during HTTP request handling, are returned with code 200, while commands cannot, are replied with 202.
+
+This API interacts asyncronously with the backend and therefore majority of command API calls are replied with 201 code.
 
 ### PUT (identified entity endpoint)
 

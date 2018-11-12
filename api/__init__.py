@@ -152,6 +152,10 @@ class DataObject(list):
                         primarykey  = True if row[5] == 1 else False
                     )
                 )
+        # Get active session_id or None
+        app.logger.critical("Fix to REAL session mgmt!!")
+        cursor.execute("SELECT max(id) FROM testing_session")
+        self.session_id = cursor.fetchone()[0]
 
 
     @property

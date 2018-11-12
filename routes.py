@@ -364,14 +364,12 @@ def psu_voltage():
             'voltage_setting',
             'modified'
         ]
-        from api.PSU import PSU
         if request.method == 'GET':
+            from api.PSU import PSU
             return api.response(PSU(request).get(include))
         else:
-            #
-            # TODO TODO TODO TODO TODO TODO TODO TODO
-            #
-            return api.response(PSU(request).post())
+            from api.Command import Command
+            return api.response(Command(request).post("PSU", "SET VOLTAGE"))
     except Exception as e:
         return api.exception_response(e)
 
@@ -432,14 +430,12 @@ def psu_current_limit():
             'current_limit',
             'modified'
         ]
-        from api.PSU import PSU
         if request.method == 'GET':
+            from api.PSU import PSU
             return api.response(PSU(request).get(include))
         else:
-            #
-            # TODO TODO TODO TODO TODO TODO TODO TODO
-            #
-            return api.response(PSU(request).post())
+            from api.Command import Command
+            return api.response(Command(request).post("PSU", "SET CURRENT LIMIT"))
     except Exception as e:
         return api.exception_response(e)
 
@@ -472,14 +468,12 @@ def psu_power():
             'power',
             'modified'
         ]
-        from api.PSU import PSU
         if request.method == 'GET':
+            from api.PSU import PSU
             return api.response(PSU(request).get(include))
         else:
-            #
-            # TODO TODO TODO TODO TODO TODO TODO TODO
-            #
-            return api.response(PSU(request).post())
+            from api.Command import Command
+            return api.response(Command(request).post("PSU", "SET POWER"))
     except Exception as e:
         return api.exception_response(e)
 

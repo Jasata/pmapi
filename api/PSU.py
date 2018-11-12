@@ -176,22 +176,18 @@ class PSU(DataObject):
 
 
     def post(self, request):
-        """Support two PSU commands; 'voltage' and 'limit'. Each command
-        takes one decimal argument (voltage or current). Accepted request
-        parameters are thus, respective; 'fnc' and 'val'.
-        
-        Values are accepted with three decimal accuracy and decimals beyond
-        those are simply truncated away.
-        
-        Middleware communicates to backend through the database's command
-        table. This is asyncronous by definition and therefore this method
-        shall poll the command table for an update that tells it if the
-        command was successful or not. For obvious reasons, this activity
-        has a timeout.
-        
+        """Support three PSU commands; 'voltage', 'limit' and 'power'. Voltage and current limit commands need to define one float argument. Power command gives either 'ON' or 'OFF' string as an argument.
+
+        Values are accepted with three decimal accuracy and decimals beyond those are simply truncated away.
+
+        Middleware communicates to backend through the database's command table. This is asyncronous by definition and therefore this method shall poll the command table for an update that tells it if the command was successful or not. For obvious reasons, this activity has a timeout.
+
         Possible results:
-        (406) InvalidArgument()         For any argument related issue.
-        (200) {'result' : <str>}        On success.
+        (406 Not Acceptable) raise InvalidArgument()
+        (202 Accepted)
+        {
+            'command_id' : <int>
+        }
         """
         try:
             if not request.json:
