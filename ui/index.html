@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>PATE Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" type="text/css" media="all" href="css/bootstrap.css" />
+   <!-- <link rel="stylesheet" type="text/css" media="all" href="css/style.css" /> -->
+
+  <script src="js/jquery.min.js"></script>
+  <script src="js/moment.js"></script>
+  <script src="js/popper.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <script src="js/canvasjs.min.js"></script>
+ 
+</head>
+
+
+
+<body>
+    <div class="header" align="center">PATE Monitor test build v0.01 </div>
+
+<!-- This is the Upper Container: For LEFT and TOP MENU -->
+    <div class="container-fluid">
+        <div class="row" id="topRow">
+                 <div class="col-md-1">
+                     
+                </div> 
+
+                 <div class="col-md-11">
+                       
+                 </div>    
+        </div>
+    </div>
+
+<!-- This is the Lower Container: For LEFT MENU and MIDDLE CONTENT and COMMAND WINDOW -->
+
+
+<!-- This is the Lower Container: For PSU Commands -->
+<div class="container-fluid">
+    <div class="row" id="topRow">
+             <div class="col-md-1"></div> 
+
+             <div class="col-md-10" align="center">
+			 <hr>
+                 <br> 
+				   <button type="button" class="btn btn-success" data-toggle="tooltip" data-placement="bottom" title="Turn ON the PSU." id="psuPowerON" onclick="psuON()">PSU ON</button>
+                   <button type="button" class="btn btn-danger" data-toggle="tooltip" data-placement="bottom" title="Turn OFF the PSU." id="psuPowerOFF" onclick="psuOFF()">PSU OFF</button>
+                   <button type="button" class="btn btn-info" data-toggle="tooltip" data-placement="bottom" title="Refresh PSU Status Info." id="psuRefresh" onclick="psuStatusRefresh()">Refresh Status</button>
+                   <br> <br>
+                  
+                   <div class="psuStatus">PSU Status: &nbsp; <SPAN id="psuStatus1"></SPAN> <br> PSU Power State: &nbsp; <SPAN id="psuPowerState1"></SPAN> <br> <b>Current Limit: </b> <SPAN id="currentLimit1"></SPAN> A &emsp; <b>Voltage Level:</b> <SPAN id="voltageLimit1"></SPAN> V <br> <b>Measured Current: </b> <SPAN id="measuredCurrent1"></SPAN> mA &emsp; <b>Measured Voltage:</b> <SPAN id="measuredVoltage1"></SPAN> V </div>
+                   <br>
+                   <div id="PSUchartContainer" style="height: 400px; width: 100%;"> Chart Area</div>
+                    <hr>
+                   <div class="form-group row">
+                    <label for="example-datetime-local-input" class="col-1 col-form-label" align="right">Voltage</label>
+                    <div class="col-2">
+                      <input class="form-control" type="number" id="voltageLimit">
+                    </div>
+                    <label for="example-datetime-local-input" class="col-1 col-form-label" align="right">Current</label>
+                    <div class="col-2" align="center">
+                      <input class="form-control" type="number" step="0.05" id="currentLimit">
+                    </div>
+                  </div>
+                
+                   <button type="button" class="btn btn-warning" data-toggle="tooltip" data-placement="bottom" title="Set Voltage Level." id="psuSetVoltage" onclick="setVoltage()">Set Voltage</button>
+                   <button type="button" class="btn btn-warning" data-toggle="tooltip" data-placement="bottom" title="Set Current Limit." id="psuSetCurrent" onclick="setCurrent()">Set Current</button>
+                   <button type="button" class="btn btn-info" data-toggle="tooltip" data-placement="bottom" title="Set Current Limit." id="psuSetCurrent" onclick="loadLimits()">Load Limits</button>
+                   <button type="button" class="btn btn-info" data-toggle="tooltip" data-placement="bottom" title="Stop Loading the Plot." id="stopPlot" onclick="stopDisplay()">Stop Plot</button>
+                   <hr>
+                   
+             </div>    
+
+             <div class="col-md-1"> </div>    
+    </div>
+    <br>
+    <br>
+</div>
+
+<!-- This is the Lower Container: For PSU Commands -->
+<div class="container-fluid">
+    <div class="row" id="bottomRow">
+
+       <div class="col-md-1">
+           
+           
+           </div>
+      
+           <br>
+       <div class="col-md-8"> 
+            
+              <!--  <a href="https://placeholder.com"><img src="https://via.placeholder.com/640x480"></a> -->
+               <div id="chartContainer" style="height: 400px; width: 100%;"> Chart Area</div>
+
+               <div class="form-group row">
+                   <label for="example-datetime-local-input" class="col-1 col-form-label" align="right">From</label>
+                   <div class="col-3">
+                     <input class="form-control" type="datetime-local" id="begin_time" id="begintime">
+                   </div>
+                   <label for="example-datetime-local-input" class="col-1 col-form-label" align="right">To</label>
+                   <div class="col-3">
+                     <input class="form-control" type="datetime-local" id="end_time">
+                   </div>
+
+                   <select id="x">
+                    <option value="d1a" selected>d1a</option>
+                    <option value="d1b">d1b</option>
+                    <option value="d1c">d1c</option>
+                    <option value="d2a">d2a</option>
+                    <option value="d2b">d2b</option>
+                    <option value="d3">d3</option>
+                    <option value="ac1">ac1</option>
+                    <option value="ac2">ac2</option>
+                  </select> 
+                  &nbsp;
+                  <select id="y">
+                    <option value="d1a">d1a</option>
+                    <option value="d1b">d1b</option>
+                    <option value="d1c">d1c</option>
+                    <option value="d2a" selected>d2a</option>
+                    <option value="d2b">d2b</option>
+                    <option value="d3">d3</option>
+                    <option value="ac1">ac1</option>
+                    <option value="ac2">ac2</option>
+                  </select> 
+
+                </div> 
+
+          
+               <div class="btn-group" role="group" aria-label="control buttons">
+                   <button type="button" class="btn btn-secondary" data-toggle="tooltip" data-placement="bottom" title="Load the chart in the space above." onclick="refreshPHChart()" id="LoadChart">Load Chart</button>
+                   <button type="button" class="btn btn-secondary" data-toggle="tooltip" data-placement="bottom" title="Fetch CSV for current dates." id="fetchCSV" onclick="createURL()">Create JSON</button>
+                   <button type="button" class="btn btn-secondary" onclick="bootstrap1()">Display Dates</button>
+               </div>
+               <div class="btn-group" role="group" aria-label="control buttons">
+                   <button type="button" class="btn btn-secondary" data-toggle="tooltip" data-placement="bottom" title="Download CSV of Pulse Height Data." onclick="fetchCSVph()" id="fetchCSVph">CSV Pulse Height Data</button>
+                   <button type="button" class="btn btn-secondary" data-toggle="tooltip" data-placement="bottom" title="Download CSV of HouseKeeping Data." onclick="fetchCSVhk()" id="fetchCSVhk">CSV HK Data</button>
+                   <button type="button" class="btn btn-secondary" data-toggle="tooltip" data-placement="bottom" title="Download CSV of HitCount Data." onclick="fetchCSVhit()" id="fetchCSVhit">CSV Hitcount Data</button>
+               </div>
+               <br>
+               <br>
+               <br>
+
+               <div class="alertMessage"></div>
+               <br>
+       </div> 
+   </div>
+</div>
+</div>
+
+<div class="footer" align="center"> <hr>
+<p id="date"></p>
+<script>
+document.getElementById("date").innerHTML = Date();
+</script>
+</footer>
+
+
+
+<script type="text/javascript">
+    function fetchCSVhk() {
+        var myObject = new Object();
+        myObject.start = $('#begin_time').val();
+        myObject.end = $('#end_time').val();
+        var baseURL = 	"/csv/housekeeping";
+        var ux = moment(myObject.start).valueOf();
+        var uy = moment(myObject.end).valueOf();
+        uxs = moment(ux).unix();
+        uys = moment(uy).unix();
+        var url = baseURL + '?' + 'begin=' + uxs + '&' + 'end=' + uys;
+            console.log(url);
+
+        window.location.assign(url);
+        $('.alertMessage').append("<div class='alert alert-success alert-dismissable'><button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>Success! your CSV should be downloading right now.</div>")
+    }
+
+    function fetchCSVph() {
+        var myObject = new Object();
+        myObject.start = $('#begin_time').val();
+        myObject.end = $('#end_time').val();
+        var baseURL = 	"/csv/pulseheight";
+        var ux = moment(myObject.start).valueOf();
+        var uy = moment(myObject.end).valueOf();
+        uxs = moment(ux).unix();
+        uys = moment(uy).unix();
+        var url = baseURL + '?' + 'begin=' + uxs + '&' + 'end=' + uys;
+            console.log(url);
+
+        window.location.assign(url);
+         $('.alertMessage').append("<div class='alert alert-success alert-dismissable'><button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>Success! your CSV should be downloading right now.</div>")
+    }
+
+    function fetchCSVhit() {
+        var myObject = new Object();
+        myObject.start = $('#begin_time').val();
+        myObject.end = $('#end_time').val();
+        var baseURL = 	"/csv/hitcount";
+        var ux = moment(myObject.start).valueOf();
+        var uy = moment(myObject.end).valueOf();
+        uxs = moment(ux).unix();
+        uys = moment(uy).unix();
+        var url = baseURL + '?' + 'begin=' + uxs + '&' + 'end=' + uys;
+            console.log(url);
+
+        window.location.assign(url);
+         $('.alertMessage').html("<div class='alert alert-success alert-dismissable'><button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>Success! your CSV should be downloading right now.</div>")
+    }
+
+/*function psuStatusRefresh(){
+    var psuinfo = [];
+    $.getJSON("/api/psu", function(data) {  
+        $.each(data.data, function(key, value) {
+            psuinfo.push(key, value);
+        });
+    });
+  console.log(psuinfo);
+  console.log(psuinfo.3, psuinfo.5);
+  $('#currentLimit1').text( $psuinfo[3] );
+        $('#voltageLimit1').text(  psuinfo[5] );
+   // $('.psuStatus').empty();
+    $('.psuStatus').html("PSU Status<br> <b>Current Limit: </b> 0.5565mA &emsp; <b>Voltage Level:</b> 5v <br> <b>Measured Current: </b> 0.5mA &emsp; <b>Measured Voltage:</b> 5v ")
+} */
+
+function psuStatusRefresh()
+{
+    $.ajax({
+    url: "/api/psu",
+    dataType: 'json',
+    success: function( data )
+    {
+        var psuinfo = data.data;
+        $('#currentLimit1').text( psuinfo.current_limit );
+        $('#voltageLimit1').text( psuinfo.voltage_setting );
+        $('#measuredCurrent1').text( (psuinfo.measured_current).toFixed(3) );
+        $('#measuredVoltage1').text( (psuinfo.measured_voltage).toFixed(3) );
+        $('#psuStatus1').text( psuinfo.state );
+        $('#psuPowerState1').text( psuinfo.power );
+     
+    }
+});
+
+}
+
+
+function loadLimits()
+{
+    $.ajax({
+    url: "/api/psu",
+    dataType: 'json',
+    success: function( data )
+    {
+       var psuinfo = data.data;
+       var x = psuinfo.voltage_setting;
+       var y = psuinfo.current_limit;
+       $('#voltageLimit').val(x);
+       $('#currentLimit').val(y);
+    }
+});
+
+}
+
+
+function createJSON() {
+        var myObject = new Object();
+            myObject.start = $('#begin_time').val();
+            myObject.end = $('#end_time').val();
+           // myObject.pets = ["cat", "dog"];
+            var myString = JSON.stringify(myObject);
+            console.log(myString);
+}
+
+
+function psuON() {
+    setTimeout(psuStatusRefresh, 1000);
+    refreshCurrentChart();
+    var myObject = new Object();
+    myObject.power = 'ON';
+    var mystring = JSON.stringify(myObject);
+    $.ajax({
+     type: "POST",
+        url: "/api/psu/power",
+        data: JSON.stringify(myObject),
+        contentType: 'application/json',
+        dataType: "json",
+        success: function(data){console.log(mystring);},
+    });
+   
+}
+
+function psuOFF() {
+    setTimeout(psuStatusRefresh, 1000);
+    var myObject = new Object();
+    myObject.power = 'OFF';
+    var mystring = JSON.stringify(myObject);
+    $.ajax({
+     type: "POST",
+        url: "/api/psu/power",
+        data: JSON.stringify(myObject),
+        contentType: 'application/json',
+        dataType: "json",
+        success: function(data){console.log(mystring);},
+    });
+   
+}
+
+function setVoltage() {
+    var myObject = new Object();
+        myObject.voltage = $('#voltageLimit').val();
+    $.ajax({
+     type: "POST",
+        url: "/api/psu/voltage",
+        data: JSON.stringify(myObject),
+        contentType: 'application/json',
+        dataType: "json",
+        success: function(data){console.log(data);},
+        failure: function(data){console.log(data);},
+    });
+    console.log(myObject);
+    setTimeout(psuStatusRefresh, 1000);
+}
+
+
+function setCurrent() {
+    var myObject = new Object();
+        myObject.current_limit = $('#currentLimit').val();
+    $.ajax({
+     type: "POST",
+        url: "/api/psu/current/limit",
+        data: JSON.stringify(myObject),
+        contentType: 'application/json',
+        dataType: "json",
+        success: function(data){console.log(data);},
+    });
+    console.log(myObject);
+    setTimeout(psuStatusRefresh, 1000);
+}
+
+function bootstrap1() {
+        var x = $('#begin_time').val();
+        var y = $('#end_time').val();
+        console.log(x,y)
+        var ux = moment(x).valueOf();
+        var uy = moment(y).valueOf();
+        uxs = moment(ux).unix();
+        uys = moment(uy).unix();
+        console.log(uxs,uys)
+    }
+
+
+function createURL() {
+        var myObject = new Object();
+            myObject.start = $('#begin_time').val();
+            myObject.end = $('#end_time').val();
+         var baseURL = 	"/csv/hitcount";
+        var ux = moment(myObject.start).valueOf();
+        var uy = moment(myObject.end).valueOf();
+        uxs = moment(ux).unix();
+        uys = moment(uy).unix();
+         var url = baseURL + '?' + 'begin=' + uxs + '&' + 'end=' + uys;
+            console.log(url);
+}
+
+</script>
+
+
+<script type="text/javascript">
+var toType = function(obj)
+{
+    return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1].toLowerCase()
+}
+
+//
+// Pulseheight chart load and rendering
+//
+function refreshPHChart(){
+    var x_s=$('#x').val();;
+    var y_s=$('#y').val();
+    console.log(x,y);
+    var myObject = new Object();
+        myObject.start = $('#begin_time').val();
+        myObject.end = $('#end_time').val();
+        var baseURL = 	"/api/pulseheight";
+        var ux = moment(myObject.start).valueOf();
+        var uy = moment(myObject.end).valueOf();
+        uxs = moment(ux).unix();
+        uys = moment(uy).unix();
+        var url = baseURL + '?' + 'begin=' + uxs + '&' + 'end=' + uys + '&fields='+ x_s + ',' + y_s;
+            console.log(url);
+         
+    var phDataPoints = [];
+    var phChart = new CanvasJS.Chart("chartContainer",{
+        theme: "light2",    // "light1", "dark1", "dark2"
+        title:{
+            text:"Scatter Plor of Pulse Height Data"
+        },
+        exportEnabled: true,
+        zoomEnabled: true,
+        data: [{
+            type: "scatter",
+            // xValueType: "dateTime",
+            // valueFormatString: "hh mm ss",
+            dataPoints : phDataPoints
+        }]
+    });
+    $.getJSON(url, function(data) {    
+       $.each(data.data, function(index, obj){
+           phDataPoints.push({"x": eval('obj.'+x_s) , "y": eval('obj.'+y_s)});
+       });
+       phChart.render();
+       console.log(phDataPoints);
+   });
+
+ $('#LoadChart').html("Refresh Chart");
+ $('#LoadChart').prop('title', 'Reloads the chart with new data (if available).');
+}
+</script>
+
+
+<script type="text/javascript">
+//
+// PSU Current chart load and rendering
+//
+
+    var closeFunction = new Boolean(false);
+    function stopDisplay()
+    {
+        closeFunction = true;
+    }
+
+    function refreshCurrentChart(){
+        closeFunction = false;
+   var dataPoints = [];
+   var chart = new CanvasJS.Chart("PSUchartContainer",{
+       theme: "light2",    // "light1", "dark1", "dark2"
+       title:{
+           text:"PSU Current Load"
+       },
+/*        toolTip:{
+        content:"x: {x}, y: {y}" ,
+        }, */
+       exportEnabled: true,
+       zoomEnabled: true,
+       data: [{
+           type: "line",
+           xValueType: "dateTime",
+           dataPoints : dataPoints,
+           valueFormatString: "hh mm ss", 
+           labelAngle: -20
+       }]
+   });
+   $.getJSON("/api/psu", function(data) {  
+       $.each(data.data, function(key, value){
+       var xxtime = new Date(data.data.modified);
+        var x = xxtime.getTime();
+        console.log(x);
+           dataPoints.push({"x": x , "y": data.data.measured_current});
+       });
+       chart.render();
+       updateChart();
+   });
+
+ function updateChart() {
+    $.getJSON("/api/psu", function(data) {  
+       $.each(data.data, function(key, value){
+        var xxtime = new Date(data.data.modified);
+        var x = xxtime.getTime();
+           dataPoints.push({"x": x , "y": data.data.measured_current});
+           console.log(dataPoints);
+       });
+       chart.render();
+       if (closeFunction) {
+                        return true;
+                    }
+       setTimeout(function(){updateChart()}, 1000);
+   });
+   }
+}
+</script>
+
+
+
+
+</body>
+</html>
