@@ -134,18 +134,23 @@ def log_request(request):
 def pulseheight():
     """Raw PATE pulse height data.
     
-    Accepts query parameters:
-    begin - PATE timestamp (optional)
-    end - PATE timestamp (optional)
-    fields - Comman separated list of fields that are included in the returned dataset (optional).
-    
-    Returns a list of objects:
+    GET /api/pulseheight
+    Query parameters:
+    begin - PATE timestamp (Unix timestamp)
+    end - PATE timestamp (Unix timestamp)
+    fields - A comma separated list of fields to return
+    API returns 200 OK and:
     {
-        "api" : {...},
-        "data" : [ {...}, ... ],
-        "query" : {...}
+        ...,
+        "data" : [
+            {
+                <fields according to query parameter 'fields'>
+            },
+            ...
+        ],
+        ...
     }
-    Query element is returned only in debug mode."""
+    """
     log_request(request)
     try:
         from api.PulseHeight import PulseHeight
@@ -159,18 +164,24 @@ def pulseheight():
 def pulseheight_aggregate(function):
     """Aggregated raw PATE pulse height data.
 
-    Accepts query parameters:
-    begin - PATE timestamp (optional)
-    end - PATE timestamp (optional)
-    fields - Comman separated list of fields that are included in the returned dataset (optional).
-
-    Returns an aggregated result object:
+    GET /api/pulseheight/<string:function>
+    Allowed aggregate functions are: avg, sum, min, max and count.
+    Query parameters:
+    begin - PATE timestamp (Unix timestamp)
+    end - PATE timestamp (Unix timestamp)
+    fields - A comma separated list of fields to return
+    API returns 200 OK and:
     {
-        "api" : {...},
-        "data" : {...},
-        "query" : {...}
+        ...,
+        "data" : [
+            {
+                <fields according to query parameter 'fields'>
+            },
+            ...
+        ],
+        ...
     }
-    Query element is returned only in debug mode."""
+    """
     log_request(request)
     try:
         from api.PulseHeight import PulseHeight
@@ -191,18 +202,29 @@ def pulseheight_aggregate(function):
 def hitcount():
     """Classified PATE hit counters
 
-    Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Field/column descriptions are unavailable until they have been formally specified by instrument development.
-
+    GET /api/hitcount
     Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
+    API returns 200 OK and:
+    {
+        ...,
+        "data" : [
+            {
+                <fields according to query parameter 'fields'>
+            },
+            ...
+        ],
+        ...
+    }
+
+
+    Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Field/column descriptions are unavailable until they have been formally specified by instrument development.
 
     Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
 
-    GET /api/hitcount
-
-    A JSON list of objects is returned. Among object properties, primary key 'rotation' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
+    A JSON list of objects is returned. Among object properties, primary key 'timestamp' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
     log_request(request)
     try:
         from api.HitCount import HitCount
@@ -216,18 +238,26 @@ def hitcount():
 def hitcount_aggregate(function):
     """Aggregated classified PATE particle hits
 
-    Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Information on rotational period or starting time of each sector is not available within data. It must be deciphered separately, if needed.
-
+    GET /api/hitcount/<string:function>
+    Allowed aggregate functions are: avg, sum, min, max and count.
     Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
+    API returns 200 OK and:
+    {
+        ...,
+        "data" : {
+            <fields according to query parameter 'fields'>
+        },
+        ...
+    }
+
+    Data is logically grouped into full rotations, each identified by the timestamp when the rotation started. Information on rotational period or starting time of each sector is not available within data. It must be deciphered separately, if needed.
 
     Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
 
-    GET /api/hitcount/<string:function>
-
-    A JSON list containing a single object is returned. The identifier field ('rotation') is never included, because that would defeat the purpose of the aggregate functions. Allowed aggregate functions are: avg, sum, min, max and count."""
+    A JSON list containing a single object is returned. The identifier field ('timestamp') is never included, because that would defeat the purpose of the aggregate functions."""
     log_request(request)
     try:
         from api.HitCount import HitCount
@@ -249,18 +279,26 @@ def hitcount_aggregate(function):
 def housekeeping():
     """PATE Housekeeping data
 
-    Remains unspecified.
-
+    GET /api/housekeeping
     Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
+    API returns 200 OK and:
+    {
+        ...,
+        "data" : [
+            {
+                <fields according to query parameter 'fields'>
+            },
+            ...
+        ],
+        ...
+    }
 
     Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
 
-    GET /api/housekeeping
-
-    A JSON list of objects is returned. Among object properties, primary key 'rotation' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
+    A JSON list of objects is returned. Among object properties, primary key 'timestamp' is always included, regardless what 'fields' argument specifies. Data exceeding 7 days should not be requested. For more data, CSV services should be used."""
     log_request(request)
     try:
         from api.Housekeeping import Housekeeping
@@ -274,18 +312,25 @@ def housekeeping():
 def housekeeping_aggregate(function):
     """Aggregated PATE Housekeeping data
 
-    Remains unspecified.
-
+    GET /api/housekeeping/<string:function>
+    Allowed aggregate functions are: avg, sum, min, max and count.
     Query parameters:
     begin - PATE timestamp (Unix timestamp)
     end - PATE timestamp (Unix timestamp)
     fields - A comma separated list of fields to return
+    API returns 200 OK and:
+    {
+        ...,
+        "data" : {
+            <fields according to query parameter 'fields'>
+        },
+        ...
+    }
 
-    Parameters 'begin' and 'end' are integers, although the 'rotation' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
+    Parameters 'begin' and 'end' are integers, although the 'timestamp' field they are compared to, is a decimal number. NOTE: This datetime format is placeholder, because instrument development has not formally specified the one used in the actual satellite. Internally, Python timestamp is used.
 
-    GET /api/housekeeping/<string:function>
-
-    Unlike in the above described API endpoint, these responses do not explicitly include primary key field ('timestamp'), because that would defeat the purpose of the aggregate functions. Allowed aggregate functions are: avg, sum, min, max and count."""
+    Unlike in the above described API endpoint, these responses do not explicitly include primary key field ('timestamp'), because that would defeat the purpose of the aggregate functions.
+    """
     log_request(request)
     try:
         from api.Housekeeping import Housekeeping
@@ -309,19 +354,19 @@ def psu():
 
     GET /api/psu
     No query parameters supported.
-    Returns a row from 'psu' table:
+    API returns 200 OK and:
     {
-        "api" : {...},
+        ...,
         "data" : {
-            "power": "OFF" | "ON",
-            "state": "OK" | "OVER CURRENT",
-            "measured_current": (float),
-            "measured_voltage": (float),
-            "voltage_setting": (float),
-            "current_limit": (float),
-            "modified": (int)
+            "power"             : ("OFF" | "ON"),
+            "state"             : ("OK" | "OVER CURRENT"),
+            "measured_current"  : (float),
+            "measured_voltage"  : (float),
+            "voltage_setting"   : (float),
+            "current_limit"     : (float),
+            "modified"          : (int)
         },
-        "query" : {...}
+        ...
     }
 
     If the backend is not running, 404 Not Found is returned.
@@ -342,19 +387,27 @@ def psu_voltage():
     No query parameters supported.
     Response returns:
     {
-        "api" : {...},
+        ...,
         "data" : {
-            "measured_voltage": (float),
-            "voltage_setting": (float),
-            "modified": (int)
+            "measured_voltage"  : (float),
+            "voltage_setting"   : (float),
+            "modified"          : (int)
         },
-        "query" : {...}
+        ...
     }
 
     POST /api/psu/voltage
     Required payload:
     {
         "voltage" : (float)
+    }
+    API will respond with 202 Accepted and:
+    {
+        ...,
+        "data" : {
+            "command_id" : (int)
+        },
+        ...
     }
     """
     log_request(request)
@@ -382,13 +435,13 @@ def psu_current():
     No query parameters supported.
     Response returns:
     {
-        "api" : {...},
+        ...,
         "data" : {
-            "measured_current": (float),
-            "current_limit": (float),
-            "modified": (int)
+            "measured_current"  : (float),
+            "current_limit"     : (float),
+            "modified"          : (int)
         },
-        "query" : {...}
+        ...
     }"""
     log_request(request)
     try:
@@ -411,19 +464,28 @@ def psu_current_limit():
     No query parameters supported.
     Response returns:
     {
-        "api" : {...},
+        ...,
         "data" : {
-            "current_limit": (float),
-            "modified": (int)
+            "current_limit" : (float),
+            "modified"      : (int)
         },
-        "query" : {...}
+        ...
     }
 
     POST /api/psu/current/limit
     Required payload:
     {
         "current_limit" : (float)
-    }"""
+    }
+    API will respond with 202 Accepted and:
+    {
+        ...,
+        "data" : {
+            "command_id" : (int)
+        },
+        ...
+    }
+    """
     log_request(request)
     try:
         include = [
@@ -448,20 +510,30 @@ def psu_power():
     No query parameters supported.
     Response returns:
     {
-        "api" : {...},
+        ...,
         "data" : {
             "power": ["ON", "OFF"],
             "modified": (int)
         },
-        "query" : {...}
+        ...
     }
 
     POST /api/psu/power
     No query parameters supported.
     Required payload:
     {
-        "power" : ["ON", "OFF"]
-    }"""
+        "power" : ("ON" | "OFF")
+    }
+    API will respond with 202 Accepted and:
+    {
+        ...,
+        "data" : {
+            "command_id" : (int)
+        },
+        ...
+    }
+    """
+
     log_request(request)
     try:
         include = [
@@ -493,18 +565,47 @@ def register(register_id):
 
 
 
-###############################################################################
 #
 # Operator notes
 #
 @app.route('/api/note', methods=['GET', 'POST'])
 def note():
-    """Search for notes (GET method) with 'being' and 'end' criterial or create new note (POST method).
+    """Search or create note(s).
+
+    GET /api/note
+    Query parameters:
+    begin - PATE timestamp (Unix timestamp)
+    end - PATE timestamp (Unix timestamp)
+    API responds with 200 OK and:
+    {
+        ...,
+        "data" : [
+            {
+                "id"            : (int),
+                "session_id"    : (int),
+                "text"          : (str),
+                "created"       : (int)
+            },
+            ...
+        ],
+        ...
+    }
 
     POST /api/note
-
-    Required payload: { "text" : "string" }
-    Successful response is equal to fetch (GET /api/note/<int:timestamp>)."""
+    No query parameters supported.
+    Required payload:
+    {
+        "text" : (str)
+    }
+    API will respond with 200 OK and:
+    {
+        ...,
+        "data" : {
+            id" : (int)
+        },
+        ...
+    }
+    """
     log_request(request)
     try:
         from api.Note import Note
@@ -526,7 +627,22 @@ def note():
 
 @app.route('/api/note/<int:timestamp>', methods=["GET"])
 def note_by_id(timestamp):
-    """Fetch operator note (identified by timestamp)."""
+    """Fetch operator note (identified by timestamp).
+    
+    GET /api/note/<int:timestamp>
+    No query parameters supported.
+    API responds with 200 OK and:
+    {
+        ...,
+        "data" : {
+            "id"            : (int),
+            "session_id"    : (int),
+            "text"          : (str),
+            "created"       : (int)
+        },
+        ...
+    }
+    """
     log_request(request)
     try:
         from api.Note import Note

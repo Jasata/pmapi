@@ -31,11 +31,12 @@ For this reason, identified routes ('/api/entity/<int:id>') and generic routes (
 This implementation follows number of principles.
 
   * Use (singular) nouns in URIs to name resources. (no verbs, no plurals…)
+  * All JSON REST API requests must defined header 'Content-Type: application/json'.
   * Specific entity access identifies the target through URI parameter(s): ''/api/v1/employee/4121/reservation/1412/''.
   * Meta parameters, such as field selector (specifying which fields are returned), are sent
  as query parameters (…?fields=firstname,lastname&order=asc)
-  * Both GET request types ("fetch" and "search") accept all parameters as query parameters.
-  * Require all entity data in JSON payload for non-idempotent (state altering) methods (POST,PUT,PATCH).
+  * Both GET request types ("fetch" and "search") accept all parameters as query parameters. (GET requests never send JSON payloads).
+  * For non-idempotent (state altering) methods (POST,PUT,PATCH), entity data is required to be sent in JSON payload.
   * DELETE method does not use JSON payloads. Entity is identified by URI parameter (‘/user/<id>’).
   * Authentication (keys, cookies, tokens, whatever) shall not use any other storage than the HTTP header.
   * When supporting versions, recommended way is to build that into the endpoint URI: (‘/api/v2/user’). This allows supporting multiple versions and very simple interface of obsoleted API versions – they simply are not found. No code to write about “wrong version requested”…
