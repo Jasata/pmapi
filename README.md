@@ -14,7 +14,7 @@ Site file '/etc/nginx/sites-available/default' (or which ever is relevant) needs
         server_name _;
         location / {
             include uwsgi_params;
-            uwsgi_pass unix:/tmp/patemon_app.sock;
+            uwsgi_pass unix:/tmp/patemon.uwsgi.sock;
         }
     }
 
