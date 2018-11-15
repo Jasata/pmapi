@@ -951,7 +951,7 @@ def api_not_implemented(path = ''):
 @app.route('/<path:path>', methods=['GET'])
 # No-path case
 @app.route('/', methods=['GET'])
-def send_ui(path = 'dev_index.html'):
+def send_ui(path = 'index.html'):
     """Send static HTML/CSS/JS/images/... content."""
     log_request(request)
     return send_from_directory('ui', path)
