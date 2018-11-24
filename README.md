@@ -3,6 +3,10 @@ PATE Monitor UI code (Flask REST API + Web UI)
 
 This application is intended for Foresail-1 PATE development and testing purposes, but the Web UI (and REST API it uses) can be recycled into mission time EGSE purposes, if the platform team so chooses.
 
+## How to Clone with Submodules
+
+     git clone --recurse-submodules https://github.com/jasata/pmgui .
+
 ## nginx Configuration
 Site file '/etc/nginx/sites-available/default' (or which ever is relevant) needs to reflect uWSGI configuration.
 
