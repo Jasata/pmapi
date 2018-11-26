@@ -5,7 +5,7 @@ This application is intended for Foresail-1 PATE development and testing purpose
 
 ## How to Clone with Submodules
 
-     git clone --recurse-submodules https://github.com/jasata/pmgui .
+     git clone --recurse-submodules https://github.com/jasata/pmapi .
 
 ## nginx Configuration
 Site file '/etc/nginx/sites-available/default' (or which ever is relevant) needs to reflect uWSGI configuration.
