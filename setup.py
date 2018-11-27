@@ -10,6 +10,7 @@
 #
 #
 import os
+import time
 import subprocess
 
 instance_application_conf = r"""
@@ -139,7 +140,6 @@ if __name__ == '__main__':
             )
         )
         os._exit(-1)
-    os.chdir(os.path.dirname(appconf))
     # Write file
     with open(appconf, 'w') as cfgfile:
         cfgfile.write(instance_application_conf)
@@ -182,10 +182,15 @@ if __name__ == '__main__':
 
 
     # File permissions
+    ignore = [".git", ".gitignore", ".gitmodules", "__pycache__"]
     def set_basic_perms(path):
+        print("PROCESSING '" + path + "'")
         os.chmod(path, 0o775)
         for filename in os.listdir(path):
+            if os.path.basename(filename) in ignore:
+                continue
             if os.path.isdir(filename):
+                print("Directory " + filename)
                 set_basic_perms(path + "/" + filename)
             else:
                 os.chmod(path + "/" + filename, 0o664)
@@ -193,7 +198,16 @@ if __name__ == '__main__':
 
     do_or_die("chown -R www-data.www-data /srv/nginx-root")
     set_basic_perms("/srv/nginx-root")
-
+    # Specials
+    print("CWD " + os.getcwd())
+    do_or_die("chmod 700 restart.sh")
+    do_or_die("chown root.root restart.sh")
+    do_or_die("chmod 744 setup.py")
+    do_or_die("chown root.root setup.py")
+    do_or_die("chmod 444 LICENSE")
+    do_or_die("chmod 444 APPVERSION")
+    do_or_die("chmod 444 APIVERSION")
+    do_or_die("chmod 444 uwsgi.ini")
 
 
     # Restart Nginx
@@ -204,6 +218,7 @@ if __name__ == '__main__':
     do_or_die("systemctl enable uwsgi")
     do_or_die("systemctl restart uwsgi")
     # Check that the socket has been created
+    time.sleep(2)
     if not os.path.exists(socketfile):
         print(
             "uWSGI start-up failure! Socket '{}' not created!".format(
@@ -211,9 +226,6 @@ if __name__ == '__main__':
             )
         )
         os._exit(-1)
-
-
-
 
 
 
