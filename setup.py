@@ -12,7 +12,7 @@
 import os
 import subprocess
 
-instance_application_conf = """
+instance_application_conf = r"""
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
@@ -32,14 +32,14 @@ instance_application_conf = """
 # To generate SECRET_KEY:
 # >>> import os
 # >>> os.urandom(24)
-# b'\xb5R\x8d\x8aZa\x07\x90i\xe5Y\xff\x9e|\xe8p\x0b\x86;\xc3}\xd0\xfc?'
+# b'\\xb5R\\x8d...
 #
 import os
 import logging
 
 DEBUG                    = True
 SESSION_COOKIE_NAME      = 'pmapisession'
-SECRET_KEY               = b'\xb5R\x8d\x8aZa\x07\x90i\xe5Y\xff\x9e|\xe8p\x0b\x86;\xc3}\xd0\xfc?'
+SECRET_KEY               = b'\\xb5R\\x8d\\x8aZa\\x07\\x90i\\xe5Y\\xff\\x9e|\\xe8p\\x0b\\x86;\\xc3}\\xd0\\xfc?'
 EXPLAIN_TEMPLATE_LOADING = True
 TOP_LEVEL_DIR            = os.path.abspath(os.curdir)
 BASEDIR                  = os.path.abspath(os.path.dirname(__file__))
@@ -72,7 +72,7 @@ MYSQL_DATABASE_CHARSET   = 'utf8'	# PyMySQL requires 'utf8', others 'utf-8'
 #
 # SQLite3 configuration
 #
-SQLITE3_DATABASE_FILE   = 'pmapi.sqlite3'
+SQLITE3_DATABASE_FILE   = '../patemon.sqlite3'
 
 #
 # Flask email
@@ -97,6 +97,18 @@ server {
 }
 """
 
+etc_systemd_system_uwsgi_service = """
+[Unit]
+Description=uWSGI instance
+After=network.target
+
+[Service]
+ExecStartPre=-/bin/bash -c 'mkdir -p /run/uwsgi; chown www-data:www-data /run/uwsgi;'
+ExecStart=/bin/bash -c 'cd /srv/nginx-root; uwsgi --ini uwsgi.ini'
+
+[Install]
+WantedBy=multi-user.target
+"""
 
 def do_or_die(cmd: list):
     prc = subprocess.run(cmd.split(" "))
@@ -148,6 +160,24 @@ if __name__ == '__main__':
             os._exit(-1)
     with open(nginxconf, 'w') as cfgfile:
         cfgfile.write(etc_nginx_sites_available_default)
+
+
+
+    # systemd file for uwsgi
+    sysdservice = "/etc/systemd/system/uwsgi.service"
+    if os.path.exists(sysdservice):
+        if os.path.isfile(sysdservice):
+            os.rename(sysdservice, sysdservice + ".original")
+        else:
+            print(
+                "'{}' does not seem to be a regular file!".format(
+                    sysdservice
+                )
+            )
+            print("Please check manually!")
+            os._exit(-1)
+    with open(sysdservice, 'w') as servicefile:
+        servicefile.write(etc_systemd_system_uwsgi_service)
 
 
 
