@@ -193,25 +193,31 @@ if __name__ == '__main__':
         for filename in os.listdir(path):
             if os.path.basename(filename) in ignore:
                 continue
-            print("  " + path + "/" + filename)
+            path_file = path + "/" + filename
+            print(
+                "  {:.<{width}} ".format(path_file, width=50),
+                end="",
+                flush=True
+            )
             # ownership
             os.chown(
-                path + "/" + filename,
+                path_file,
                 pwd.getpwnam("www-data").pw_uid,
                 grp.getgrnam("www-data").gr_gid
             )
             # permissions
-            if os.path.isdir(filename):
-                set_basic_perms(path + "/" + filename)
+            if os.path.isdir(path_file):
+                print("directory")
+                set_basic_perms(path_file)
             else:
-                os.chmod(path + "/" + filename, 0o664)
+                print("file")
+                os.chmod(path_file, 0o664)
             # if filename.endswith(".c") or filename.endswith(".py"): 
 
     print("Setting basic permissions and ownerships...")
     set_basic_perms("/srv/nginx-root")
-    print("Done!")
     # Specials
-    print("Setting special permissions and ownerships...")
+    print("Setting special permissions and ownerships...", end="", flush=True)
     do_or_die("chmod 700 restart.sh")
     do_or_die("chown root.root restart.sh")
     do_or_die("chmod 744 setup.py")
@@ -222,13 +228,19 @@ if __name__ == '__main__':
     do_or_die("chmod 444 uwsgi.ini")
     print("Done!")
 
+    print("Enabling uWSGI service in systemd...", end="", flush=True)
+    do_or_die("systemctl enable uwsgi")
+    print("Done!")
 
+    print("Restarting services")
     # Restart Nginx
+    print("  {:.<{width}} ".format("nginx", width=20), end="", flush=True)
     do_or_die("systemctl restart nginx")
+    print("done!")
 
     # Enable uWSGI
     socketfile = "/tmp/patemon.uwsgi.sock"
-    do_or_die("systemctl enable uwsgi")
+    print("  {:.<{width}} ".format("uwsgi", width=20), end="", flush=True)
     do_or_die("systemctl restart uwsgi")
     # Check that the socket has been created
     time.sleep(2)
@@ -239,7 +251,9 @@ if __name__ == '__main__':
             )
         )
         os._exit(-1)
+    print("Done!")
 
 
+    print("Repository 'pmapi' setup completed!\n")
 
 # EOF
