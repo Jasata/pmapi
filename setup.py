@@ -27,6 +27,8 @@ ForeSail-1 / PATE Monitor API setup script
 Version {}, 2018 {}
 """.format(__version__, __author__)
 
+
+
 appconf_file = "/srv/nginx-root/instance/application.conf"
 appconf_content = """
 #! /usr/bin/env python3
@@ -157,7 +159,7 @@ def write_cfg(cfgfile, content, force=False):
 # File permissions
 def set_basic_perms(path, devmode=False):
     """Expects to receive a directory (sets it 0o775 right off the bat)."""
-    # print(("normal", "DEVMODE")[devmode])
+    # print(("normal", "DEVMODE")[devmode]) - use later with octals?
     ignore = [".git", ".gitignore", ".gitmodules", "__pycache__"]
     os.chmod(path, 0o775)
     for filename in os.listdir(path):
@@ -170,18 +172,11 @@ def set_basic_perms(path, devmode=False):
             flush=True
         )
         # ownership
-        if devmode:
-            os.chown(
-                path_file,
-                pwd.getpwnam("pi").pw_uid,
-                grp.getgrnam("www-data").gr_gid
-            )
-        else:
-            os.chown(
-                path_file,
-                pwd.getpwnam("www-data").pw_uid,
-                grp.getgrnam("www-data").gr_gid
-            )
+        os.chown(
+            path_file,
+            pwd.getpwnam("www-data").pw_uid,
+            grp.getgrnam("www-data").gr_gid
+        )
         # permissions
         if os.path.isdir(path_file):
             print("directory")
@@ -189,7 +184,6 @@ def set_basic_perms(path, devmode=False):
         else:
             print("file")
             os.chmod(path_file, 0o664)
-        # if filename.endswith(".c") or filename.endswith(".py"): 
 
 
 ###############################################################################
@@ -242,67 +236,6 @@ if __name__ == '__main__':
         print("Creating systemd configuration for uWSGI...", end="", flush=True)
         write_cfg(sysconf_file, sysconf_content, args.force)
         print("Done!")
-
-
-    # def write_cfg(cfgfile, content, force=False):
-    # if os.path.exists(appconf) and not os.path.isfile(appconf):
-    #     print(
-    #         "ERROR! '{}' exists and is not a directory!".format(
-    #             os.path.dirname(appconf)
-    #         )
-    #     )
-    #     os._exit(-1)
-    # if os.path.exists(appconf):
-    #     if not args.force:
-    #         print("Application instance '{}' already exists!".format(appconf))
-    #         print("Use '--force' option to overwrite.")
-    #         os._exit(-1)
-    #     else:
-    #         pass
-    # # Create path and file
-    # if not os.path.exists(os.path.dirname(appconf)):
-    #     os.makedirs(os.path.dirname(appconf))
-    # with open(appconf, 'w') as cfgfile:
-    #     cfgfile.write(instance_application_conf)
-
-
-
-    # # New 'default' site for Nginx
-    # nginxconf = "/etc/nginx/sites-available/default"
-    # if os.path.exists(nginxconf):
-    #     if os.path.isfile(nginxconf):
-    #         os.rename(nginxconf, nginxconf + ".original")
-    #     else:
-    #         print(
-    #             "'{}' does not seem to be a regular file!".format(
-    #                 nginxconf
-    #             )
-    #         )
-    #         print("Please check manually!")
-    #         os._exit(-1)
-    # with open(nginxconf, 'w') as cfgfile:
-    #     cfgfile.write(etc_nginx_sites_available_default)
-
-
-
-    # # systemd file for uwsgi
-    # sysdservice = "/etc/systemd/system/uwsgi.service"
-    # if os.path.exists(sysdservice):
-    #     if os.path.isfile(sysdservice):
-    #         os.rename(sysdservice, sysdservice + ".original")
-    #     else:
-    #         print(
-    #             "'{}' does not seem to be a regular file!".format(
-    #                 sysdservice
-    #             )
-    #         )
-    #         print("Please check manually!")
-    #         os._exit(-1)
-    # with open(sysdservice, 'w') as servicefile:
-    #     servicefile.write(etc_systemd_system_uwsgi_service)
-
-
-
 
 
     print("Setting basic permissions and ownerships...")
