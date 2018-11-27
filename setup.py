@@ -7,9 +7,12 @@
 #
 # setup.py - Jani Tammi <jasata@utu.fi>
 #   0.1.0   2018.11.26  Initial version.
+#   0.2.0   2018.11.27  Permission and ownership setting fixed.
 #
 #
 import os
+import pwd
+import grp
 import time
 import subprocess
 
@@ -181,25 +184,34 @@ if __name__ == '__main__':
 
 
 
+
     # File permissions
-    ignore = [".git", ".gitignore", ".gitmodules", "__pycache__"]
     def set_basic_perms(path):
-        print("PROCESSING '" + path + "'")
+        """Expects to receive a directory (sets it 0o775 right off the bat)."""
+        ignore = [".git", ".gitignore", ".gitmodules", "__pycache__"]
         os.chmod(path, 0o775)
         for filename in os.listdir(path):
             if os.path.basename(filename) in ignore:
                 continue
+            print("  " + path + "/" + filename)
+            # ownership
+            os.chown(
+                path + "/" + filename,
+                pwd.getpwnam("www-data").pw_uid,
+                grp.getgrnam("www-data").gr_gid
+            )
+            # permissions
             if os.path.isdir(filename):
-                print("Directory " + filename)
                 set_basic_perms(path + "/" + filename)
             else:
                 os.chmod(path + "/" + filename, 0o664)
-            # if filename.endswith(".asm") or filename.endswith(".py"): 
+            # if filename.endswith(".c") or filename.endswith(".py"): 
 
-    do_or_die("chown -R www-data.www-data /srv/nginx-root")
+    print("Setting basic permissions and ownerships...")
     set_basic_perms("/srv/nginx-root")
+    print("Done!")
     # Specials
-    print("CWD " + os.getcwd())
+    print("Setting special permissions and ownerships...")
     do_or_die("chmod 700 restart.sh")
     do_or_die("chown root.root restart.sh")
     do_or_die("chmod 744 setup.py")
@@ -208,6 +220,7 @@ if __name__ == '__main__':
     do_or_die("chmod 444 APPVERSION")
     do_or_die("chmod 444 APIVERSION")
     do_or_die("chmod 444 uwsgi.ini")
+    print("Done!")
 
 
     # Restart Nginx
