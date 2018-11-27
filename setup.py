@@ -16,7 +16,7 @@ import grp
 import time
 import subprocess
 
-instance_application_conf = r"""
+instance_application_conf = """
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
@@ -43,7 +43,7 @@ import logging
 
 DEBUG                    = True
 SESSION_COOKIE_NAME      = 'pmapisession'
-SECRET_KEY               = b'\\xb5R\\x8d\\x8aZa\\x07\\x90i\\xe5Y\\xff\\x9e|\\xe8p\\x0b\\x86;\\xc3}\\xd0\\xfc?'
+SECRET_KEY               = """ + str(os.urandom(24)) + """
 EXPLAIN_TEMPLATE_LOADING = True
 TOP_LEVEL_DIR            = os.path.abspath(os.curdir)
 BASEDIR                  = os.path.abspath(os.path.dirname(__file__))
@@ -254,6 +254,6 @@ if __name__ == '__main__':
     print("Done!")
 
 
-    print("Repository 'pmapi' setup completed!\n")
+    print("Module 'pmapi' setup completed!\n")
 
 # EOF
