@@ -7,7 +7,7 @@ This application is intended for Foresail-1 PATE development and testing purpose
 
      git clone --recurse-submodules https://github.com/jasata/pmapi .
 
-## How to update as submodule
+## How to update a submodule
 
     # change to the submodule directory
     cd ui
@@ -23,6 +23,10 @@ This application is intended for Foresail-1 PATE development and testing purpose
 
     # now the submodules are in the state you want, so
     git commit -am "Pulled down update to /ui"
+
+Alternatively:
+
+    git submodule foreach git pull origin master
 
 ## nginx Configuration
 Site file '/etc/nginx/sites-available/default' (or which ever is relevant) needs to reflect uWSGI configuration.
