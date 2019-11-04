@@ -3,6 +3,20 @@ PATE Monitor UI code (Flask REST API + Web UI)
 
 This application is intended for Foresail-1 PATE development and testing purposes, but the Web UI (and REST API it uses) can be recycled into mission time EGSE purposes, if the platform team so chooses.
 
+## Interfaces
+The Flask solution offers two primary interfaces;
+
+    - REST API via `/api` (TODO: root node output; JSON of routes to /api/*)
+    - CSV downloads via `/csv` (TODO: root node output; CSV of routes to /csv/*)
+
+In addition, system configuration is viewable;
+
+    - Flask `app.config` listing in `/sys/cfg`
+    - REST API listing in human readable format in `/api.html`
+    - Full interface (routes) JSON listing in `/sys/api`
+
+The default interface is to serve HTML content via all URI's not matching the paths listed above.
+
 ## How to Clone with Submodules
 
      git clone --recurse-submodules https://github.com/jasata/pmapi .
